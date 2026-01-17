@@ -49,17 +49,17 @@ set "CURRENT_STATUS="
 if exist "%STATUS_FILE%" (
     for /f "usebackq tokens=*" %%s in ("%STATUS_FILE%") do set "CURRENT_STATUS=%%s"
 )
-if "%CURRENT_STATUS%"=="" (
+if "!CURRENT_STATUS!"=="" (
     echo [No status file yet]
 ) else (
-    echo %CURRENT_STATUS%
+    echo !CURRENT_STATUS!
 )
 echo.
 
 echo --- PID ---
 if exist "%PID_FILE%" (
     for /f "usebackq tokens=* delims= " %%p in ("%PID_FILE%") do set "JOB_PID=%%p"
-    echo %JOB_PID%
+    echo !JOB_PID!
 ) else (
     echo [No PID file found]
 )
