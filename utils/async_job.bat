@@ -74,8 +74,10 @@ echo Stdout File: %STDOUT_FILE%
 echo Stderr File: %STDERR_FILE%
 echo ============================================================================
 echo.
-echo Note: To stop a running job, press Ctrl+C. The job will be terminated
-echo       and you can check the status files in the Internals Directory.
+echo Note: Ctrl+C in batch will prompt "Terminate batch job (Y/N)?". If you
+echo       answer Y, the polling stops but the background job continues running.
+echo       To stop a running job, use: stop_job.bat "%JOB_UUID%"
+echo       Or run the stop command manually from the Internals Directory.
 echo.
 echo ============================================================================
 echo LAUNCHING JOB...
@@ -114,10 +116,10 @@ set "POLL_COUNT=0"
 :POLL_LOOP
 set /a POLL_COUNT+=1
 
-REM Read current status
+REM Read current status (tokens=* trims leading whitespace, and we strip trailing via direct assignment)
 set "CURRENT_STATUS="
 if exist "%STATUS_FILE%" (
-    for /f "usebackq delims=" %%s in ("%STATUS_FILE%") do set "CURRENT_STATUS=%%s"
+    for /f "usebackq tokens=*" %%s in ("%STATUS_FILE%") do set "CURRENT_STATUS=%%s"
 )
 
 REM Display status header
@@ -144,58 +146,9 @@ if "%CURRENT_STATUS%"=="SUCCESS" goto :JOB_COMPLETE
 if "%CURRENT_STATUS%"=="FAILURE" goto :JOB_COMPLETE
 
 REM Wait 2 seconds before next poll
-REM Note: timeout may return errorlevel 1 on Ctrl+C, but we only handle
-REM Ctrl+C manually if job is still running. If status is already FAILURE,
-REM we should go to JOB_COMPLETE instead.
 timeout /t 2 /nobreak >nul 2>&1
 
 goto :POLL_LOOP
-
-:CTRL_C_HANDLER
-echo.
-echo ============================================================================
-echo Ctrl+C detected! Stopping job...
-echo ============================================================================
-echo.
-
-REM Read PID from file
-set "JOB_PID="
-if exist "%PID_FILE%" (
-    for /f "usebackq delims=" %%p in ("%PID_FILE%") do set "JOB_PID=%%p"
-)
-
-if "%JOB_PID%"=="" (
-    echo WARNING: Could not find PID to stop the job
-    goto :FINAL_STATUS
-)
-
-echo Attempting to stop job with PID: %JOB_PID%
-echo Job UUID: %JOB_UUID%
-echo.
-
-REM Stop the job using the Kill-Tree function from executor.stop_job
-REM This walks the process tree and kills matching processes
-powershell -NoProfile -ExecutionPolicy Bypass -Command ^
-"function Kill-Tree { ^
-    param([int] $ppid, [string] $matchString, [bool] $matchFound = $false); ^
-    $process = Get-CimInstance Win32_Process | Where-Object { $_.ProcessId -eq $ppid }; ^
-    if (-not $process) { Write-Host 'Process with PID' $ppid 'not found.'; return }; ^
-    if (-not $matchFound -and $process.CommandLine -like \"*$matchString*\") { ^
-        Write-Host 'Match found for process PID' $ppid 'and' $matchString; ^
-        $matchFound = $true ^
-    } elseif (-not $matchFound) { ^
-        Write-Host 'No match for process PID' $ppid 'and' $matchString '. Skipping.'; ^
-    } else { ^
-        Write-Host 'Killing process PID' $ppid; ^
-        if ($matchFound) { Stop-Process -Id $ppid -Force -ErrorAction SilentlyContinue } ^
-    }; ^
-    Get-CimInstance Win32_Process | Where-Object { $_.ParentProcessId -eq $ppid } | ForEach-Object { Kill-Tree -ppid $_.ProcessId -matchString $matchString -matchFound $matchFound } ^
-}; ^
-Kill-Tree -ppid %JOB_PID% -matchString '%JOB_UUID%'"
-
-echo.
-echo Job stop command executed.
-goto :FINAL_STATUS
 
 :JOB_COMPLETE
 echo.

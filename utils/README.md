@@ -48,11 +48,10 @@ The script will display:
 
 ### `async_job.bat`
 
-Runs a command asynchronously in the background, polls for status, displays ongoing output, and handles Ctrl+C for graceful shutdown.
+Runs a command asynchronously in the background, polls for status, and displays ongoing output.
 
 **Based on:** 
 - `executor.run_cmd_job()` from `executor.lua`
-- `executor.stop_job()` from `executor.lua`
 - Various polling functions from `job_runner.lua`
 
 **Usage:**
@@ -82,14 +81,49 @@ async_job.bat "ping -n 30 localhost && ping -n 30 localhost"
 - Generates unique UUID for job tracking
 - Creates status files in `%APPDATA%\jobrunner\<uuid>\`
 - Polls every 2 seconds and displays current stdout/stderr
-- Handles Ctrl+C to gracefully stop the job
-- Uses process tree walking to stop all child processes
-- Displays final status on completion or interruption
+- Automatically exits when job completes (SUCCESS or FAILURE)
+- Displays final status on completion
 
 **Status Values:**
 - `RUNNING` - Job is currently executing
 - `SUCCESS` - Job completed successfully (exit code 0)
 - `FAILURE` - Job completed with an error (non-zero exit code)
+- `STOPPED` - Job was stopped manually via `stop_job.bat`
+
+**Note on Ctrl+C:** Windows batch files cannot trap Ctrl+C before the system "Terminate batch job (Y/N)?" prompt. If you press Ctrl+C and answer Y, the polling script will exit but the background job continues. Use `stop_job.bat` to stop the background job.
+
+---
+
+### `stop_job.bat`
+
+Stops a running async job by its UUID.
+
+**Based on:** `executor.stop_job()` from `executor.lua`
+
+**Usage:**
+```batch
+stop_job.bat "job_uuid"
+```
+
+**Arguments:**
+- `job_uuid` - The UUID of the job to stop (required, displayed when async_job.bat starts)
+
+**Examples:**
+```batch
+REM Stop a job by UUID
+stop_job.bat "78f734c4-496c-40d0-83f4-127d43e97195"
+```
+
+**Features:**
+- Finds the job by UUID in `%APPDATA%\jobrunner\<uuid>\`
+- Uses process tree walking to stop all child processes
+- Updates job status to STOPPED
+- Shows final stdout/stderr at time of stop
+
+**How to use:**
+1. Run `async_job.bat` and note the Job UUID displayed
+2. Open a new command prompt
+3. Run `stop_job.bat "your-job-uuid"` to stop the job
 
 ---
 
@@ -130,7 +164,7 @@ background_command = table.concat({
 })
 ```
 
-### stop_job (async_job.bat Ctrl+C handler)
+### stop_job (stop_job.bat)
 
 The Lua code defines a Kill-Tree PowerShell function that:
 1. Walks the process tree from a given PID
