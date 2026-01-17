@@ -10,6 +10,9 @@ param(
 # Import test helpers
 . "$PSScriptRoot\test_helpers.ps1"
 
+# Initialize test log directory for storing failed test output
+Initialize-TestLogDir
+
 # Resolve the utils directory to absolute path
 $UtilsDir = (Resolve-Path $UtilsDir -ErrorAction SilentlyContinue).Path
 if (-not $UtilsDir) {

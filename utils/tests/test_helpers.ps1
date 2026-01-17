@@ -15,8 +15,19 @@ $script:TestsPassed = 0
 $script:TestsFailed = 0
 $script:TestsSkipped = 0
 
+# Test log directory for storing full output of failed tests
+$script:TestLogDir = Join-Path $env:TEMP "vlc-shell-jobs-test-logs"
+
 # UUID pattern for job output parsing (format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx)
 $script:UUID_PATTERN = '[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}'
+
+function Initialize-TestLogDir {
+    if (-not (Test-Path $script:TestLogDir)) {
+        New-Item -ItemType Directory -Path $script:TestLogDir -Force | Out-Null
+    }
+    # Clean up old log files at start
+    Get-ChildItem -Path $script:TestLogDir -Filter "*.log" -ErrorAction SilentlyContinue | Remove-Item -Force -ErrorAction SilentlyContinue
+}
 
 function Write-TestHeader {
     param([string]$TestSuiteName)
@@ -53,6 +64,41 @@ function Write-TestSkip {
 function Write-TestInfo {
     param([string]$Message)
     Write-Host "  INFO: $Message"
+}
+
+function Save-FailedTestOutput {
+    param(
+        [string]$TestDescription,
+        [string]$Output,
+        [string]$ExpectedText
+    )
+    
+    # Ensure log directory exists
+    if (-not (Test-Path $script:TestLogDir)) {
+        New-Item -ItemType Directory -Path $script:TestLogDir -Force | Out-Null
+    }
+    
+    # Create a safe filename from the test description
+    $safeFileName = $TestDescription -replace '[^a-zA-Z0-9]', '_'
+    $safeFileName = $safeFileName.Substring(0, [Math]::Min(50, $safeFileName.Length))
+    $timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
+    $logFile = Join-Path $script:TestLogDir "${safeFileName}_${timestamp}.log"
+    
+    # Write the full output to the log file
+    $logContent = @"
+============================================================================
+FAILED TEST: $TestDescription
+============================================================================
+Expected text not found: '$ExpectedText'
+============================================================================
+FULL OUTPUT:
+============================================================================
+$Output
+============================================================================
+"@
+    [System.IO.File]::WriteAllText($logFile, $logContent)
+    
+    return $logFile
 }
 
 function Write-TestSummary {
@@ -117,6 +163,8 @@ function Assert-OutputContains {
     if ([string]::IsNullOrEmpty($Output)) {
         Write-TestFail "$TestDescription - Expected text not found: '$ExpectedText'"
         Write-TestInfo "Actual output (truncated): <empty>"
+        $logFile = Save-FailedTestOutput -TestDescription $TestDescription -Output "<empty>" -ExpectedText $ExpectedText
+        Write-TestInfo "Full output saved to: $logFile"
         return $false
     }
     
@@ -127,6 +175,8 @@ function Assert-OutputContains {
         Write-TestFail "$TestDescription - Expected text not found: '$ExpectedText'"
         $truncatedLength = [Math]::Min(500, $Output.Length)
         Write-TestInfo "Actual output (truncated): $($Output.Substring(0, $truncatedLength))"
+        $logFile = Save-FailedTestOutput -TestDescription $TestDescription -Output $Output -ExpectedText $ExpectedText
+        Write-TestInfo "Full output saved to: $logFile"
         return $false
     }
 }
