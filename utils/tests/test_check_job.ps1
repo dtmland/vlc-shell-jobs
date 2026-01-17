@@ -55,11 +55,19 @@ Assert-OutputContains -Output $result.Output -ExpectedText "ERROR: Job directory
 # ============================================================================
 Write-TestCase "Check running job shows RUNNING status"
 
-# Launch a long-running job
+# Launch a long-running job using Run-CommandWithTimeout to start it
+# Then use Start-Process with properly separated arguments
 $outputFile = "$env:TEMP\check_test_output.txt"
-$cmdArgs = "/c `"$AsyncJobScript`" `"ping -n 30 127.0.0.1`" `"%USERPROFILE%`" `"LongJob`""
-$asyncProcess = Start-Process -FilePath "cmd.exe" -ArgumentList $cmdArgs `
-    -PassThru -RedirectStandardOutput $outputFile -NoNewWindow
+
+# Create a temp batch file to launch the async job
+$launchBatch = [System.IO.Path]::GetTempFileName() + ".bat"
+$launchContent = @"
+@echo off
+call "$AsyncJobScript" "ping -n 30 127.0.0.1" "%USERPROFILE%" "LongJob"
+"@
+[System.IO.File]::WriteAllText($launchBatch, $launchContent)
+
+$asyncProcess = Start-Process -FilePath $launchBatch -PassThru -RedirectStandardOutput $outputFile -NoNewWindow
 
 Start-Sleep -Seconds 5
 
@@ -103,6 +111,9 @@ if ($jobUuid) {
 if (Test-Path $outputFile) {
     Remove-Item $outputFile -Force -ErrorAction SilentlyContinue
 }
+if (Test-Path $launchBatch) {
+    Remove-Item $launchBatch -Force -ErrorAction SilentlyContinue
+}
 
 # ============================================================================
 # Test 4: Check a completed job shows SUCCESS/FAILURE
@@ -139,10 +150,11 @@ Write-TestCase "Check job shows PID"
 $fakeUuid = [guid]::NewGuid().ToString()
 $fakeDir = "$env:APPDATA\jobrunner\$fakeUuid"
 New-Item -Path $fakeDir -ItemType Directory -Force | Out-Null
-"RUNNING" | Out-File -FilePath "$fakeDir\job_status.txt" -Encoding ascii
-"12345" | Out-File -FilePath "$fakeDir\job_pid.txt" -Encoding ascii
-"test stdout content" | Out-File -FilePath "$fakeDir\stdout.txt" -Encoding ascii
-"" | Out-File -FilePath "$fakeDir\stderr.txt" -Encoding ascii
+# Use WriteAllText to avoid BOM and ensure clean file content
+[System.IO.File]::WriteAllText("$fakeDir\job_status.txt", "RUNNING")
+[System.IO.File]::WriteAllText("$fakeDir\job_pid.txt", "12345")
+[System.IO.File]::WriteAllText("$fakeDir\stdout.txt", "test stdout content")
+[System.IO.File]::WriteAllText("$fakeDir\stderr.txt", "")
 
 $result = Run-CommandWithTimeout -Command "call `"$CheckJobScript`" `"$fakeUuid`"" -TimeoutSeconds 10
 Assert-OutputContains -Output $result.Output -ExpectedText "PID" -TestDescription "PID section shown"
@@ -158,10 +170,10 @@ Write-TestCase "Check job shows stdout content"
 $fakeUuid = [guid]::NewGuid().ToString()
 $fakeDir = "$env:APPDATA\jobrunner\$fakeUuid"
 New-Item -Path $fakeDir -ItemType Directory -Force | Out-Null
-"SUCCESS" | Out-File -FilePath "$fakeDir\job_status.txt" -Encoding ascii
-"99999" | Out-File -FilePath "$fakeDir\job_pid.txt" -Encoding ascii
-"hello from stdout test" | Out-File -FilePath "$fakeDir\stdout.txt" -Encoding ascii
-"" | Out-File -FilePath "$fakeDir\stderr.txt" -Encoding ascii
+[System.IO.File]::WriteAllText("$fakeDir\job_status.txt", "SUCCESS")
+[System.IO.File]::WriteAllText("$fakeDir\job_pid.txt", "99999")
+[System.IO.File]::WriteAllText("$fakeDir\stdout.txt", "hello from stdout test")
+[System.IO.File]::WriteAllText("$fakeDir\stderr.txt", "")
 
 $result = Run-CommandWithTimeout -Command "call `"$CheckJobScript`" `"$fakeUuid`"" -TimeoutSeconds 10
 Assert-OutputContains -Output $result.Output -ExpectedText "STDOUT" -TestDescription "STDOUT section shown"
@@ -177,10 +189,10 @@ Write-TestCase "Check job shows stderr content"
 $fakeUuid = [guid]::NewGuid().ToString()
 $fakeDir = "$env:APPDATA\jobrunner\$fakeUuid"
 New-Item -Path $fakeDir -ItemType Directory -Force | Out-Null
-"FAILURE" | Out-File -FilePath "$fakeDir\job_status.txt" -Encoding ascii
-"88888" | Out-File -FilePath "$fakeDir\job_pid.txt" -Encoding ascii
-"" | Out-File -FilePath "$fakeDir\stdout.txt" -Encoding ascii
-"error from stderr test" | Out-File -FilePath "$fakeDir\stderr.txt" -Encoding ascii
+[System.IO.File]::WriteAllText("$fakeDir\job_status.txt", "FAILURE")
+[System.IO.File]::WriteAllText("$fakeDir\job_pid.txt", "88888")
+[System.IO.File]::WriteAllText("$fakeDir\stdout.txt", "")
+[System.IO.File]::WriteAllText("$fakeDir\stderr.txt", "error from stderr test")
 
 $result = Run-CommandWithTimeout -Command "call `"$CheckJobScript`" `"$fakeUuid`"" -TimeoutSeconds 10
 Assert-OutputContains -Output $result.Output -ExpectedText "STDERR" -TestDescription "STDERR section shown"
@@ -196,10 +208,10 @@ Write-TestCase "Custom tail lines parameter"
 $fakeUuid = [guid]::NewGuid().ToString()
 $fakeDir = "$env:APPDATA\jobrunner\$fakeUuid"
 New-Item -Path $fakeDir -ItemType Directory -Force | Out-Null
-"SUCCESS" | Out-File -FilePath "$fakeDir\job_status.txt" -Encoding ascii
-"77777" | Out-File -FilePath "$fakeDir\job_pid.txt" -Encoding ascii
-"line1`nline2`nline3`nline4`nline5" | Out-File -FilePath "$fakeDir\stdout.txt" -Encoding ascii
-"" | Out-File -FilePath "$fakeDir\stderr.txt" -Encoding ascii
+[System.IO.File]::WriteAllText("$fakeDir\job_status.txt", "SUCCESS")
+[System.IO.File]::WriteAllText("$fakeDir\job_pid.txt", "77777")
+[System.IO.File]::WriteAllText("$fakeDir\stdout.txt", "line1`r`nline2`r`nline3`r`nline4`r`nline5")
+[System.IO.File]::WriteAllText("$fakeDir\stderr.txt", "")
 
 $result = Run-CommandWithTimeout -Command "call `"$CheckJobScript`" `"$fakeUuid`" 100" -TimeoutSeconds 10
 Assert-OutputContains -Output $result.Output -ExpectedText "Tail lines: 100" -TestDescription "Custom tail lines shown"
@@ -214,10 +226,10 @@ Write-TestCase "Default tail lines is 50"
 $fakeUuid = [guid]::NewGuid().ToString()
 $fakeDir = "$env:APPDATA\jobrunner\$fakeUuid"
 New-Item -Path $fakeDir -ItemType Directory -Force | Out-Null
-"SUCCESS" | Out-File -FilePath "$fakeDir\job_status.txt" -Encoding ascii
-"66666" | Out-File -FilePath "$fakeDir\job_pid.txt" -Encoding ascii
-"test" | Out-File -FilePath "$fakeDir\stdout.txt" -Encoding ascii
-"" | Out-File -FilePath "$fakeDir\stderr.txt" -Encoding ascii
+[System.IO.File]::WriteAllText("$fakeDir\job_status.txt", "SUCCESS")
+[System.IO.File]::WriteAllText("$fakeDir\job_pid.txt", "66666")
+[System.IO.File]::WriteAllText("$fakeDir\stdout.txt", "test")
+[System.IO.File]::WriteAllText("$fakeDir\stderr.txt", "")
 
 $result = Run-CommandWithTimeout -Command "call `"$CheckJobScript`" `"$fakeUuid`"" -TimeoutSeconds 10
 Assert-OutputContains -Output $result.Output -ExpectedText "Tail lines: 50" -TestDescription "Default tail lines is 50"
@@ -232,10 +244,10 @@ Write-TestCase "Session files location shown"
 $fakeUuid = [guid]::NewGuid().ToString()
 $fakeDir = "$env:APPDATA\jobrunner\$fakeUuid"
 New-Item -Path $fakeDir -ItemType Directory -Force | Out-Null
-"SUCCESS" | Out-File -FilePath "$fakeDir\job_status.txt" -Encoding ascii
-"55555" | Out-File -FilePath "$fakeDir\job_pid.txt" -Encoding ascii
-"test" | Out-File -FilePath "$fakeDir\stdout.txt" -Encoding ascii
-"" | Out-File -FilePath "$fakeDir\stderr.txt" -Encoding ascii
+[System.IO.File]::WriteAllText("$fakeDir\job_status.txt", "SUCCESS")
+[System.IO.File]::WriteAllText("$fakeDir\job_pid.txt", "55555")
+[System.IO.File]::WriteAllText("$fakeDir\stdout.txt", "test")
+[System.IO.File]::WriteAllText("$fakeDir\stderr.txt", "")
 
 $result = Run-CommandWithTimeout -Command "call `"$CheckJobScript`" `"$fakeUuid`"" -TimeoutSeconds 10
 Assert-OutputContains -Output $result.Output -ExpectedText "Session files:" -TestDescription "Session files location shown"
@@ -248,11 +260,16 @@ Cleanup-JobDirectory -JobUuid $fakeUuid
 # ============================================================================
 Write-TestCase "Check job while async_job is running (parallel)"
 
-# Start a long-running job
+# Start a long-running job using a temp batch file to avoid quoting issues
 $parallelOutputFile = "$env:TEMP\parallel_test.txt"
-$parallelCmdArgs = "/c `"$AsyncJobScript`" `"ping -n 20 127.0.0.1`""
-$asyncProcess = Start-Process -FilePath "cmd.exe" -ArgumentList $parallelCmdArgs `
-    -PassThru -RedirectStandardOutput $parallelOutputFile -NoNewWindow
+$parallelLaunchBatch = [System.IO.Path]::GetTempFileName() + ".bat"
+$parallelLaunchContent = @"
+@echo off
+call "$AsyncJobScript" "ping -n 20 127.0.0.1"
+"@
+[System.IO.File]::WriteAllText($parallelLaunchBatch, $parallelLaunchContent)
+
+$asyncProcess = Start-Process -FilePath $parallelLaunchBatch -PassThru -RedirectStandardOutput $parallelOutputFile -NoNewWindow
 
 Start-Sleep -Seconds 4
 
@@ -292,6 +309,9 @@ if ($jobUuid) {
 if (Test-Path $parallelOutputFile) {
     Remove-Item $parallelOutputFile -Force -ErrorAction SilentlyContinue
 }
+if (Test-Path $parallelLaunchBatch) {
+    Remove-Item $parallelLaunchBatch -Force -ErrorAction SilentlyContinue
+}
 
 # ============================================================================
 # Test 12: Internals directory path shown
@@ -301,10 +321,10 @@ Write-TestCase "Internals directory path shown"
 $fakeUuid = [guid]::NewGuid().ToString()
 $fakeDir = "$env:APPDATA\jobrunner\$fakeUuid"
 New-Item -Path $fakeDir -ItemType Directory -Force | Out-Null
-"RUNNING" | Out-File -FilePath "$fakeDir\job_status.txt" -Encoding ascii
-"44444" | Out-File -FilePath "$fakeDir\job_pid.txt" -Encoding ascii
-"test" | Out-File -FilePath "$fakeDir\stdout.txt" -Encoding ascii
-"" | Out-File -FilePath "$fakeDir\stderr.txt" -Encoding ascii
+[System.IO.File]::WriteAllText("$fakeDir\job_status.txt", "RUNNING")
+[System.IO.File]::WriteAllText("$fakeDir\job_pid.txt", "44444")
+[System.IO.File]::WriteAllText("$fakeDir\stdout.txt", "test")
+[System.IO.File]::WriteAllText("$fakeDir\stderr.txt", "")
 
 $result = Run-CommandWithTimeout -Command "call `"$CheckJobScript`" `"$fakeUuid`"" -TimeoutSeconds 10
 Assert-OutputContains -Output $result.Output -ExpectedText "Internals Directory:" -TestDescription "Internals directory shown"
