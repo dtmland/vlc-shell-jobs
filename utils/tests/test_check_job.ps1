@@ -10,11 +10,26 @@ param(
 # Import test helpers
 . "$PSScriptRoot\test_helpers.ps1"
 
+# Resolve the utils directory to absolute path
+$UtilsDir = (Resolve-Path $UtilsDir -ErrorAction SilentlyContinue).Path
+if (-not $UtilsDir) {
+    Write-Host "ERROR: Utils directory not found: $UtilsDir"
+    exit 1
+}
+
 $AsyncJobScript = Join-Path $UtilsDir "async_job.bat"
 $CheckJobScript = Join-Path $UtilsDir "check_job.bat"
 $StopJobScript = Join-Path $UtilsDir "stop_job.bat"
 
 Write-TestHeader "check_job.bat Tests"
+
+# Pre-flight checks
+if (-not (Test-PreFlightChecks -ScriptPath $CheckJobScript -ScriptName "check_job.bat")) {
+    Write-Host "Pre-flight checks failed. Aborting tests."
+    exit 1
+}
+
+Write-Host ""
 
 # ============================================================================
 # Test 1: No UUID provided - should show error

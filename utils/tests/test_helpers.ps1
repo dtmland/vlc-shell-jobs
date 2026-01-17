@@ -85,6 +85,27 @@ function Get-TestsPassed { return $script:TestsPassed }
 function Get-TestsFailed { return $script:TestsFailed }
 function Get-TestsSkipped { return $script:TestsSkipped }
 
+function Test-PreFlightChecks {
+    param(
+        [string]$ScriptPath,
+        [string]$ScriptName
+    )
+    
+    Write-Host ""
+    Write-Host "--- PRE-FLIGHT CHECKS ---"
+    
+    # Check if the script exists
+    if (Test-Path $ScriptPath) {
+        Write-Host "  [OK] Script found: $ScriptPath"
+        return $true
+    } else {
+        Write-Host "  [ERROR] Script NOT found: $ScriptPath"
+        Write-Host "  Tests cannot proceed without the target script."
+        Write-Host ""
+        return $false
+    }
+}
+
 function Assert-OutputContains {
     param(
         [string]$Output,
@@ -277,16 +298,22 @@ function Run-CommandWithTimeout {
         [int]$TimeoutSeconds = 60
     )
     
-    # Use a temporary file approach for more reliable output capture
+    # Create a wrapper batch file to handle redirection properly
+    $tempBatch = [System.IO.Path]::GetTempFileName() + ".bat"
     $tempStdout = [System.IO.Path]::GetTempFileName()
     $tempStderr = [System.IO.Path]::GetTempFileName()
     
     try {
+        # Write the command to a batch file, with proper redirection
+        $batchContent = "@echo off`r`n$Command"
+        [System.IO.File]::WriteAllText($tempBatch, $batchContent)
+        
         $processInfo = New-Object System.Diagnostics.ProcessStartInfo
         $processInfo.FileName = "cmd.exe"
-        $processInfo.Arguments = "/c $Command > `"$tempStdout`" 2> `"$tempStderr`""
+        $processInfo.Arguments = "/c `"$tempBatch`" > `"$tempStdout`" 2> `"$tempStderr`""
         $processInfo.UseShellExecute = $false
         $processInfo.CreateNoWindow = $true
+        $processInfo.WorkingDirectory = $env:USERPROFILE
         
         $process = New-Object System.Diagnostics.Process
         $process.StartInfo = $processInfo
@@ -297,7 +324,7 @@ function Run-CommandWithTimeout {
         
         if (-not $completed) {
             $process.Kill()
-            $stdout = if (Test-Path $tempStdout) { Get-Content $tempStdout -Raw } else { "" }
+            $stdout = if (Test-Path $tempStdout) { Get-Content $tempStdout -Raw -ErrorAction SilentlyContinue } else { "" }
             return @{
                 Output = $stdout
                 Error = "Process timed out after $TimeoutSeconds seconds"
@@ -307,8 +334,12 @@ function Run-CommandWithTimeout {
         }
         
         # Read captured output from temp files
-        $stdout = if (Test-Path $tempStdout) { Get-Content $tempStdout -Raw } else { "" }
-        $stderr = if (Test-Path $tempStderr) { Get-Content $tempStderr -Raw } else { "" }
+        $stdout = if (Test-Path $tempStdout) { Get-Content $tempStdout -Raw -ErrorAction SilentlyContinue } else { "" }
+        $stderr = if (Test-Path $tempStderr) { Get-Content $tempStderr -Raw -ErrorAction SilentlyContinue } else { "" }
+        
+        # Handle null from Get-Content
+        if ($null -eq $stdout) { $stdout = "" }
+        if ($null -eq $stderr) { $stderr = "" }
         
         return @{
             Output = $stdout
@@ -318,6 +349,7 @@ function Run-CommandWithTimeout {
         }
     }
     finally {
+        if (Test-Path $tempBatch) { Remove-Item $tempBatch -Force -ErrorAction SilentlyContinue }
         if (Test-Path $tempStdout) { Remove-Item $tempStdout -Force -ErrorAction SilentlyContinue }
         if (Test-Path $tempStderr) { Remove-Item $tempStderr -Force -ErrorAction SilentlyContinue }
         if ($null -ne $process) { $process.Dispose() }
