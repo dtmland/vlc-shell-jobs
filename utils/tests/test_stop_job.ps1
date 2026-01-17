@@ -172,9 +172,10 @@ $outputFile2 = "$env:TEMP\async_test_output2.txt"
 
 # Create a temp batch file to launch the async job (avoids quoting issues)
 $launchBatch2 = [System.IO.Path]::GetTempFileName() + ".bat"
+# Use a simple command that outputs first, then runs long (ping -n will echo each reply)
 $launchContent2 = @"
 @echo off
-call "$AsyncJobScript" "echo output_before_stop ^&^& ping -n 30 127.0.0.1"
+call "$AsyncJobScript" "ping -n 30 127.0.0.1"
 "@
 [System.IO.File]::WriteAllText($launchBatch2, $launchContent2)
 
