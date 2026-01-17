@@ -35,7 +35,7 @@ Write-Host ""
 # Test 1: No arguments provided - should show error
 # ============================================================================
 Write-TestCase "Missing command argument shows error"
-$result = Run-CommandWithTimeout -Command "`"$AsyncJobScript`"" -TimeoutSeconds 10
+$result = Run-CommandWithTimeout -Command "call `"$AsyncJobScript`"" -TimeoutSeconds 10
 Assert-OutputContains -Output $result.Output -ExpectedText "ERROR: No command specified" -TestDescription "Error message shown"
 Assert-OutputContains -Output $result.Output -ExpectedText "Usage:" -TestDescription "Usage information shown"
 
@@ -44,7 +44,7 @@ Assert-OutputContains -Output $result.Output -ExpectedText "Usage:" -TestDescrip
 # ============================================================================
 Write-TestCase "Job launches and shows UUID"
 # Use a quick command that completes fast
-$result = Run-CommandWithTimeout -Command "`"$AsyncJobScript`" `"echo test_launch`"" -TimeoutSeconds 30
+$result = Run-CommandWithTimeout -Command "call `"$AsyncJobScript`" `"echo test_launch`"" -TimeoutSeconds 30
 Assert-OutputContains -Output $result.Output -ExpectedText "ASYNC JOB LAUNCHER" -TestDescription "Header shown"
 Assert-OutputContains -Output $result.Output -ExpectedText "Job UUID:" -TestDescription "UUID displayed"
 Assert-OutputContains -Output $result.Output -ExpectedText "Job Name:" -TestDescription "Job name displayed"
@@ -62,7 +62,7 @@ if ($jobUuid) {
 # Test 3: Job creates internals directory and status files
 # ============================================================================
 Write-TestCase "Job creates internals directory and status files"
-$result = Run-CommandWithTimeout -Command "`"$AsyncJobScript`" `"echo file_test`"" -TimeoutSeconds 30
+$result = Run-CommandWithTimeout -Command "call `"$AsyncJobScript`" `"echo file_test`"" -TimeoutSeconds 30
 
 $jobUuid = Get-JobUuidFromOutput -Output $result.Output
 if ($jobUuid) {
@@ -85,7 +85,7 @@ if ($jobUuid) {
 # Test 4: Successful job has SUCCESS status
 # ============================================================================
 Write-TestCase "Successful job shows SUCCESS status"
-$result = Run-CommandWithTimeout -Command "`"$AsyncJobScript`" `"echo success_test`"" -TimeoutSeconds 30
+$result = Run-CommandWithTimeout -Command "call `"$AsyncJobScript`" `"echo success_test`"" -TimeoutSeconds 30
 Assert-OutputContains -Output $result.Output -ExpectedText "SUCCESS" -TestDescription "Job shows SUCCESS status"
 Assert-OutputContains -Output $result.Output -ExpectedText "JOB COMPLETED" -TestDescription "Job completed message shown"
 Assert-OutputContains -Output $result.Output -ExpectedText "success_test" -TestDescription "Command output captured"
@@ -99,7 +99,7 @@ if ($jobUuid) {
 # Test 5: Failed job has FAILURE status
 # ============================================================================
 Write-TestCase "Failed job shows FAILURE status"
-$result = Run-CommandWithTimeout -Command "`"$AsyncJobScript`" `"exit 1`"" -TimeoutSeconds 30
+$result = Run-CommandWithTimeout -Command "call `"$AsyncJobScript`" `"exit 1`"" -TimeoutSeconds 30
 Assert-OutputContains -Output $result.Output -ExpectedText "FAILURE" -TestDescription "Job shows FAILURE status"
 Assert-OutputContains -Output $result.Output -ExpectedText "JOB COMPLETED" -TestDescription "Job completed message shown"
 
@@ -112,7 +112,7 @@ if ($jobUuid) {
 # Test 6: Custom job name is displayed
 # ============================================================================
 Write-TestCase "Custom job name is displayed"
-$result = Run-CommandWithTimeout -Command "`"$AsyncJobScript`" `"echo test`" `"%USERPROFILE%`" `"MyCustomJob`"" -TimeoutSeconds 30
+$result = Run-CommandWithTimeout -Command "call `"$AsyncJobScript`" `"echo test`" `"%USERPROFILE%`" `"MyCustomJob`"" -TimeoutSeconds 30
 Assert-OutputContains -Output $result.Output -ExpectedText "Job Name: MyCustomJob" -TestDescription "Custom job name shown"
 
 $jobUuid = Get-JobUuidFromOutput -Output $result.Output
@@ -125,7 +125,7 @@ if ($jobUuid) {
 # ============================================================================
 Write-TestCase "Custom working directory"
 $testDir = $env:TEMP
-$result = Run-CommandWithTimeout -Command "`"$AsyncJobScript`" `"cd`" `"$testDir`"" -TimeoutSeconds 30
+$result = Run-CommandWithTimeout -Command "call `"$AsyncJobScript`" `"cd`" `"$testDir`"" -TimeoutSeconds 30
 Assert-OutputContains -Output $result.Output -ExpectedText "Working Directory: $testDir" -TestDescription "Custom working directory shown"
 Assert-OutputContains -Output $result.Output -ExpectedText "SUCCESS" -TestDescription "Job succeeded"
 
@@ -138,7 +138,7 @@ if ($jobUuid) {
 # Test 8: Default job name is AsyncJob
 # ============================================================================
 Write-TestCase "Default job name is AsyncJob"
-$result = Run-CommandWithTimeout -Command "`"$AsyncJobScript`" `"echo test`"" -TimeoutSeconds 30
+$result = Run-CommandWithTimeout -Command "call `"$AsyncJobScript`" `"echo test`"" -TimeoutSeconds 30
 Assert-OutputContains -Output $result.Output -ExpectedText "Job Name: AsyncJob" -TestDescription "Default job name is AsyncJob"
 
 $jobUuid = Get-JobUuidFromOutput -Output $result.Output
@@ -151,7 +151,7 @@ if ($jobUuid) {
 # ============================================================================
 Write-TestCase "Job captures stdout properly"
 $testString = "stdout_capture_test_$(Get-Random)"
-$result = Run-CommandWithTimeout -Command "`"$AsyncJobScript`" `"echo $testString`"" -TimeoutSeconds 30
+$result = Run-CommandWithTimeout -Command "call `"$AsyncJobScript`" `"echo $testString`"" -TimeoutSeconds 30
 Assert-OutputContains -Output $result.Output -ExpectedText $testString -TestDescription "Stdout captured in output"
 
 $jobUuid = Get-JobUuidFromOutput -Output $result.Output
@@ -167,7 +167,7 @@ if ($jobUuid) {
 # Test 10: Polling shows status updates
 # ============================================================================
 Write-TestCase "Polling shows status updates"
-$result = Run-CommandWithTimeout -Command "`"$AsyncJobScript`" `"ping -n 2 127.0.0.1`"" -TimeoutSeconds 60
+$result = Run-CommandWithTimeout -Command "call `"$AsyncJobScript`" `"ping -n 2 127.0.0.1`"" -TimeoutSeconds 60
 Assert-OutputContains -Output $result.Output -ExpectedText "Poll #" -TestDescription "Polling counter shown"
 Assert-OutputContains -Output $result.Output -ExpectedText "Status:" -TestDescription "Status displayed during polling"
 
@@ -180,7 +180,7 @@ if ($jobUuid) {
 # Test 11: Final status section displayed
 # ============================================================================
 Write-TestCase "Final status section displayed"
-$result = Run-CommandWithTimeout -Command "`"$AsyncJobScript`" `"echo final_test`"" -TimeoutSeconds 30
+$result = Run-CommandWithTimeout -Command "call `"$AsyncJobScript`" `"echo final_test`"" -TimeoutSeconds 30
 Assert-OutputContains -Output $result.Output -ExpectedText "FINAL STATUS" -TestDescription "Final status section shown"
 Assert-OutputContains -Output $result.Output -ExpectedText "FINAL STDOUT" -TestDescription "Final stdout section shown"
 Assert-OutputContains -Output $result.Output -ExpectedText "FINAL STDERR" -TestDescription "Final stderr section shown"
@@ -194,7 +194,7 @@ if ($jobUuid) {
 # Test 12: Stop job instructions are shown
 # ============================================================================
 Write-TestCase "Stop job instructions are shown"
-$result = Run-CommandWithTimeout -Command "`"$AsyncJobScript`" `"echo quick`"" -TimeoutSeconds 30
+$result = Run-CommandWithTimeout -Command "call `"$AsyncJobScript`" `"echo quick`"" -TimeoutSeconds 30
 Assert-OutputContains -Output $result.Output -ExpectedText "stop_job.bat" -TestDescription "Stop job instructions shown"
 
 $jobUuid = Get-JobUuidFromOutput -Output $result.Output
@@ -206,7 +206,7 @@ if ($jobUuid) {
 # Test 13: Default working directory is USERPROFILE
 # ============================================================================
 Write-TestCase "Default working directory is USERPROFILE"
-$result = Run-CommandWithTimeout -Command "`"$AsyncJobScript`" `"echo test`"" -TimeoutSeconds 30
+$result = Run-CommandWithTimeout -Command "call `"$AsyncJobScript`" `"echo test`"" -TimeoutSeconds 30
 $expectedDir = $env:USERPROFILE
 Assert-OutputContains -Output $result.Output -ExpectedText "Working Directory: $expectedDir" -TestDescription "Default directory is USERPROFILE"
 

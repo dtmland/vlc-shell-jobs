@@ -35,7 +35,7 @@ Write-Host ""
 # Test 1: No UUID provided - should show error
 # ============================================================================
 Write-TestCase "Missing UUID argument shows error"
-$result = Run-CommandWithTimeout -Command "`"$CheckJobScript`"" -TimeoutSeconds 10
+$result = Run-CommandWithTimeout -Command "call `"$CheckJobScript`"" -TimeoutSeconds 10
 Assert-OutputContains -Output $result.Output -ExpectedText "ERROR: No job UUID specified" -TestDescription "Error message shown"
 Assert-OutputContains -Output $result.Output -ExpectedText "Usage:" -TestDescription "Usage information shown"
 
@@ -44,7 +44,7 @@ Assert-OutputContains -Output $result.Output -ExpectedText "Usage:" -TestDescrip
 # ============================================================================
 Write-TestCase "Invalid UUID shows directory not found error"
 $fakeUuid = "00000000-0000-0000-0000-000000000001"
-$result = Run-CommandWithTimeout -Command "`"$CheckJobScript`" `"$fakeUuid`"" -TimeoutSeconds 10
+$result = Run-CommandWithTimeout -Command "call `"$CheckJobScript`" `"$fakeUuid`"" -TimeoutSeconds 10
 Assert-OutputContains -Output $result.Output -ExpectedText "ERROR: Job directory not found" -TestDescription "Directory not found error shown"
 
 # ============================================================================
@@ -71,7 +71,7 @@ if ($jobUuid) {
     Write-TestInfo "Job UUID: $jobUuid"
     
     # Check the job status
-    $checkResult = Run-CommandWithTimeout -Command "`"$CheckJobScript`" `"$jobUuid`"" -TimeoutSeconds 10
+    $checkResult = Run-CommandWithTimeout -Command "call `"$CheckJobScript`" `"$jobUuid`"" -TimeoutSeconds 10
     Assert-OutputContains -Output $checkResult.Output -ExpectedText "CHECK JOB" -TestDescription "CHECK JOB header shown"
     Assert-OutputContains -Output $checkResult.Output -ExpectedText "Job UUID: $jobUuid" -TestDescription "UUID displayed"
     Assert-OutputContains -Output $checkResult.Output -ExpectedText "STATUS" -TestDescription "STATUS section present"
@@ -84,7 +84,7 @@ if ($jobUuid) {
     }
     
     # Stop and clean up
-    Run-CommandWithTimeout -Command "`"$StopJobScript`" `"$jobUuid`"" -TimeoutSeconds 30 | Out-Null
+    Run-CommandWithTimeout -Command "call `"$StopJobScript`" `"$jobUuid`"" -TimeoutSeconds 30 | Out-Null
     if (-not $asyncProcess.HasExited) {
         try {
             $asyncProcess.Kill()
@@ -107,12 +107,12 @@ if (Test-Path $outputFile) {
 Write-TestCase "Check completed job shows final status"
 
 # Run a quick job
-$result = Run-CommandWithTimeout -Command "`"$AsyncJobScript`" `"echo quick_check_test`"" -TimeoutSeconds 30
+$result = Run-CommandWithTimeout -Command "call `"$AsyncJobScript`" `"echo quick_check_test`"" -TimeoutSeconds 30
 $jobUuid = Get-JobUuidFromOutput -Output $result.Output
 
 if ($jobUuid) {
     # Check the completed job
-    $checkResult = Run-CommandWithTimeout -Command "`"$CheckJobScript`" `"$jobUuid`"" -TimeoutSeconds 10
+    $checkResult = Run-CommandWithTimeout -Command "call `"$CheckJobScript`" `"$jobUuid`"" -TimeoutSeconds 10
     
     # Should show SUCCESS since echo succeeds
     if ($checkResult.Output -like "*SUCCESS*") {
@@ -141,7 +141,7 @@ New-Item -Path $fakeDir -ItemType Directory -Force | Out-Null
 "test stdout content" | Out-File -FilePath "$fakeDir\stdout.txt" -Encoding ascii
 "" | Out-File -FilePath "$fakeDir\stderr.txt" -Encoding ascii
 
-$result = Run-CommandWithTimeout -Command "`"$CheckJobScript`" `"$fakeUuid`"" -TimeoutSeconds 10
+$result = Run-CommandWithTimeout -Command "call `"$CheckJobScript`" `"$fakeUuid`"" -TimeoutSeconds 10
 Assert-OutputContains -Output $result.Output -ExpectedText "PID" -TestDescription "PID section shown"
 Assert-OutputContains -Output $result.Output -ExpectedText "12345" -TestDescription "PID value displayed"
 
@@ -160,7 +160,7 @@ New-Item -Path $fakeDir -ItemType Directory -Force | Out-Null
 "hello from stdout test" | Out-File -FilePath "$fakeDir\stdout.txt" -Encoding ascii
 "" | Out-File -FilePath "$fakeDir\stderr.txt" -Encoding ascii
 
-$result = Run-CommandWithTimeout -Command "`"$CheckJobScript`" `"$fakeUuid`"" -TimeoutSeconds 10
+$result = Run-CommandWithTimeout -Command "call `"$CheckJobScript`" `"$fakeUuid`"" -TimeoutSeconds 10
 Assert-OutputContains -Output $result.Output -ExpectedText "STDOUT" -TestDescription "STDOUT section shown"
 Assert-OutputContains -Output $result.Output -ExpectedText "hello from stdout test" -TestDescription "Stdout content displayed"
 
@@ -179,7 +179,7 @@ New-Item -Path $fakeDir -ItemType Directory -Force | Out-Null
 "" | Out-File -FilePath "$fakeDir\stdout.txt" -Encoding ascii
 "error from stderr test" | Out-File -FilePath "$fakeDir\stderr.txt" -Encoding ascii
 
-$result = Run-CommandWithTimeout -Command "`"$CheckJobScript`" `"$fakeUuid`"" -TimeoutSeconds 10
+$result = Run-CommandWithTimeout -Command "call `"$CheckJobScript`" `"$fakeUuid`"" -TimeoutSeconds 10
 Assert-OutputContains -Output $result.Output -ExpectedText "STDERR" -TestDescription "STDERR section shown"
 Assert-OutputContains -Output $result.Output -ExpectedText "error from stderr test" -TestDescription "Stderr content displayed"
 
@@ -198,7 +198,7 @@ New-Item -Path $fakeDir -ItemType Directory -Force | Out-Null
 "line1`nline2`nline3`nline4`nline5" | Out-File -FilePath "$fakeDir\stdout.txt" -Encoding ascii
 "" | Out-File -FilePath "$fakeDir\stderr.txt" -Encoding ascii
 
-$result = Run-CommandWithTimeout -Command "`"$CheckJobScript`" `"$fakeUuid`" 100" -TimeoutSeconds 10
+$result = Run-CommandWithTimeout -Command "call `"$CheckJobScript`" `"$fakeUuid`" 100" -TimeoutSeconds 10
 Assert-OutputContains -Output $result.Output -ExpectedText "Tail lines: 100" -TestDescription "Custom tail lines shown"
 
 Cleanup-JobDirectory -JobUuid $fakeUuid
@@ -216,7 +216,7 @@ New-Item -Path $fakeDir -ItemType Directory -Force | Out-Null
 "test" | Out-File -FilePath "$fakeDir\stdout.txt" -Encoding ascii
 "" | Out-File -FilePath "$fakeDir\stderr.txt" -Encoding ascii
 
-$result = Run-CommandWithTimeout -Command "`"$CheckJobScript`" `"$fakeUuid`"" -TimeoutSeconds 10
+$result = Run-CommandWithTimeout -Command "call `"$CheckJobScript`" `"$fakeUuid`"" -TimeoutSeconds 10
 Assert-OutputContains -Output $result.Output -ExpectedText "Tail lines: 50" -TestDescription "Default tail lines is 50"
 
 Cleanup-JobDirectory -JobUuid $fakeUuid
@@ -234,7 +234,7 @@ New-Item -Path $fakeDir -ItemType Directory -Force | Out-Null
 "test" | Out-File -FilePath "$fakeDir\stdout.txt" -Encoding ascii
 "" | Out-File -FilePath "$fakeDir\stderr.txt" -Encoding ascii
 
-$result = Run-CommandWithTimeout -Command "`"$CheckJobScript`" `"$fakeUuid`"" -TimeoutSeconds 10
+$result = Run-CommandWithTimeout -Command "call `"$CheckJobScript`" `"$fakeUuid`"" -TimeoutSeconds 10
 Assert-OutputContains -Output $result.Output -ExpectedText "Session files:" -TestDescription "Session files location shown"
 Assert-OutputContains -Output $result.Output -ExpectedText $fakeUuid -TestDescription "UUID in session files path"
 
@@ -263,7 +263,7 @@ $jobUuid = Get-JobUuidFromOutput -Output $asyncOutput
 if ($jobUuid) {
     # Check job multiple times while running
     for ($i = 1; $i -le 3; $i++) {
-        $checkResult = Run-CommandWithTimeout -Command "`"$CheckJobScript`" `"$jobUuid`"" -TimeoutSeconds 10
+        $checkResult = Run-CommandWithTimeout -Command "call `"$CheckJobScript`" `"$jobUuid`"" -TimeoutSeconds 10
         if ($checkResult.Output -like "*STATUS*") {
             Write-TestPass "Check #$i returned status successfully"
         } else {
@@ -273,7 +273,7 @@ if ($jobUuid) {
     }
     
     # Stop and clean up
-    Run-CommandWithTimeout -Command "`"$StopJobScript`" `"$jobUuid`"" -TimeoutSeconds 30 | Out-Null
+    Run-CommandWithTimeout -Command "call `"$StopJobScript`" `"$jobUuid`"" -TimeoutSeconds 30 | Out-Null
     if (-not $asyncProcess.HasExited) {
         try {
             $asyncProcess.Kill()
@@ -303,7 +303,7 @@ New-Item -Path $fakeDir -ItemType Directory -Force | Out-Null
 "test" | Out-File -FilePath "$fakeDir\stdout.txt" -Encoding ascii
 "" | Out-File -FilePath "$fakeDir\stderr.txt" -Encoding ascii
 
-$result = Run-CommandWithTimeout -Command "`"$CheckJobScript`" `"$fakeUuid`"" -TimeoutSeconds 10
+$result = Run-CommandWithTimeout -Command "call `"$CheckJobScript`" `"$fakeUuid`"" -TimeoutSeconds 10
 Assert-OutputContains -Output $result.Output -ExpectedText "Internals Directory:" -TestDescription "Internals directory shown"
 
 Cleanup-JobDirectory -JobUuid $fakeUuid

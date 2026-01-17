@@ -298,19 +298,27 @@ function Run-CommandWithTimeout {
         [int]$TimeoutSeconds = 60
     )
     
-    # Create a wrapper batch file to handle redirection properly
-    $tempBatch = [System.IO.Path]::GetTempFileName() + ".bat"
+    # Create temp files for the wrapper and output
+    $tempBatch = [System.IO.Path]::GetTempFileName()
+    # Rename to .bat extension
+    $tempBatchBat = $tempBatch + ".bat"
     $tempStdout = [System.IO.Path]::GetTempFileName()
     $tempStderr = [System.IO.Path]::GetTempFileName()
     
     try {
-        # Write the command to a batch file, with proper redirection
-        $batchContent = "@echo off`r`n$Command"
-        [System.IO.File]::WriteAllText($tempBatch, $batchContent)
+        # Remove the original temp file (we'll use the .bat one)
+        if (Test-Path $tempBatch) { Remove-Item $tempBatch -Force }
+        
+        # Write a wrapper batch file that includes the redirection
+        # This avoids complex quoting issues with cmd.exe /c
+        $batchContent = @"
+@echo off
+$Command > "$tempStdout" 2> "$tempStderr"
+"@
+        [System.IO.File]::WriteAllText($tempBatchBat, $batchContent)
         
         $processInfo = New-Object System.Diagnostics.ProcessStartInfo
-        $processInfo.FileName = "cmd.exe"
-        $processInfo.Arguments = "/c `"$tempBatch`" > `"$tempStdout`" 2> `"$tempStderr`""
+        $processInfo.FileName = $tempBatchBat
         $processInfo.UseShellExecute = $false
         $processInfo.CreateNoWindow = $true
         $processInfo.WorkingDirectory = $env:USERPROFILE
@@ -350,6 +358,7 @@ function Run-CommandWithTimeout {
     }
     finally {
         if (Test-Path $tempBatch) { Remove-Item $tempBatch -Force -ErrorAction SilentlyContinue }
+        if (Test-Path $tempBatchBat) { Remove-Item $tempBatchBat -Force -ErrorAction SilentlyContinue }
         if (Test-Path $tempStdout) { Remove-Item $tempStdout -Force -ErrorAction SilentlyContinue }
         if (Test-Path $tempStderr) { Remove-Item $tempStderr -Force -ErrorAction SilentlyContinue }
         if ($null -ne $process) { $process.Dispose() }

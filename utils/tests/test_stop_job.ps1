@@ -35,7 +35,7 @@ Write-Host ""
 # Test 1: No UUID provided - should show error
 # ============================================================================
 Write-TestCase "Missing UUID argument shows error"
-$result = Run-CommandWithTimeout -Command "`"$StopJobScript`"" -TimeoutSeconds 10
+$result = Run-CommandWithTimeout -Command "call `"$StopJobScript`"" -TimeoutSeconds 10
 Assert-OutputContains -Output $result.Output -ExpectedText "ERROR: No job UUID specified" -TestDescription "Error message shown"
 Assert-OutputContains -Output $result.Output -ExpectedText "Usage:" -TestDescription "Usage information shown"
 
@@ -44,7 +44,7 @@ Assert-OutputContains -Output $result.Output -ExpectedText "Usage:" -TestDescrip
 # ============================================================================
 Write-TestCase "Invalid UUID shows directory not found error"
 $fakeUuid = "00000000-0000-0000-0000-000000000000"
-$result = Run-CommandWithTimeout -Command "`"$StopJobScript`" `"$fakeUuid`"" -TimeoutSeconds 10
+$result = Run-CommandWithTimeout -Command "call `"$StopJobScript`" `"$fakeUuid`"" -TimeoutSeconds 10
 Assert-OutputContains -Output $result.Output -ExpectedText "ERROR: Job directory not found" -TestDescription "Directory not found error shown"
 
 # ============================================================================
@@ -86,7 +86,7 @@ if ($jobUuid) {
     }
     
     # Stop the job
-    $stopResult = Run-CommandWithTimeout -Command "`"$StopJobScript`" `"$jobUuid`"" -TimeoutSeconds 30
+    $stopResult = Run-CommandWithTimeout -Command "call `"$StopJobScript`" `"$jobUuid`"" -TimeoutSeconds 30
     Assert-OutputContains -Output $stopResult.Output -ExpectedText "Job UUID: $jobUuid" -TestDescription "Stop command shows correct UUID"
     Assert-OutputContains -Output $stopResult.Output -ExpectedText "Job stop command executed" -TestDescription "Stop command executed"
     Assert-OutputContains -Output $stopResult.Output -ExpectedText "STOPPED" -TestDescription "Job marked as STOPPED"
@@ -125,7 +125,7 @@ if (Test-Path $outputFile) {
 Write-TestCase "Stop already completed job"
 
 # Run a quick job that completes immediately
-$result = Run-CommandWithTimeout -Command "`"$AsyncJobScript`" `"echo quick_complete`"" -TimeoutSeconds 30
+$result = Run-CommandWithTimeout -Command "call `"$AsyncJobScript`" `"echo quick_complete`"" -TimeoutSeconds 30
 $jobUuid = Get-JobUuidFromOutput -Output $result.Output
 
 if ($jobUuid) {
@@ -133,7 +133,7 @@ if ($jobUuid) {
     Start-Sleep -Seconds 1
     
     # Try to stop the already completed job
-    $stopResult = Run-CommandWithTimeout -Command "`"$StopJobScript`" `"$jobUuid`"" -TimeoutSeconds 10
+    $stopResult = Run-CommandWithTimeout -Command "call `"$StopJobScript`" `"$jobUuid`"" -TimeoutSeconds 10
     
     # Should indicate job already finished
     $hasCompleteMsg = ($stopResult.Output -like "*already completed*") -or ($stopResult.Output -like "*SUCCESS*") -or ($stopResult.Output -like "*No need to stop*")
@@ -171,7 +171,7 @@ $jobUuid = Get-JobUuidFromOutput -Output $asyncOutput
 
 if ($jobUuid) {
     # Stop the job
-    $stopResult = Run-CommandWithTimeout -Command "`"$StopJobScript`" `"$jobUuid`"" -TimeoutSeconds 30
+    $stopResult = Run-CommandWithTimeout -Command "call `"$StopJobScript`" `"$jobUuid`"" -TimeoutSeconds 30
     Assert-OutputContains -Output $stopResult.Output -ExpectedText "STDOUT (at time of stop)" -TestDescription "Shows stdout section"
     Assert-OutputContains -Output $stopResult.Output -ExpectedText "STDERR (at time of stop)" -TestDescription "Shows stderr section"
     
@@ -204,7 +204,7 @@ New-Item -Path $fakeDir -ItemType Directory -Force | Out-Null
 "test output" | Out-File -FilePath "$fakeDir\stdout.txt" -Encoding ascii
 "" | Out-File -FilePath "$fakeDir\stderr.txt" -Encoding ascii
 
-$result = Run-CommandWithTimeout -Command "`"$StopJobScript`" `"$fakeUuid`"" -TimeoutSeconds 30
+$result = Run-CommandWithTimeout -Command "call `"$StopJobScript`" `"$fakeUuid`"" -TimeoutSeconds 30
 Assert-OutputContains -Output $result.Output -ExpectedText "Session files located in:" -TestDescription "Session files location shown"
 Assert-OutputContains -Output $result.Output -ExpectedText $fakeUuid -TestDescription "UUID shown in output"
 
@@ -220,7 +220,7 @@ New-Item -Path $fakeDir -ItemType Directory -Force | Out-Null
 "RUNNING" | Out-File -FilePath "$fakeDir\job_status.txt" -Encoding ascii
 "99999" | Out-File -FilePath "$fakeDir\job_pid.txt" -Encoding ascii
 
-$result = Run-CommandWithTimeout -Command "`"$StopJobScript`" `"$fakeUuid`"" -TimeoutSeconds 30
+$result = Run-CommandWithTimeout -Command "call `"$StopJobScript`" `"$fakeUuid`"" -TimeoutSeconds 30
 Assert-OutputContains -Output $result.Output -ExpectedText "Current job status:" -TestDescription "Current status displayed"
 
 Cleanup-JobDirectory -JobUuid $fakeUuid
@@ -235,7 +235,7 @@ New-Item -Path $fakeDir -ItemType Directory -Force | Out-Null
 "RUNNING" | Out-File -FilePath "$fakeDir\job_status.txt" -Encoding ascii
 "88888" | Out-File -FilePath "$fakeDir\job_pid.txt" -Encoding ascii
 
-$result = Run-CommandWithTimeout -Command "`"$StopJobScript`" `"$fakeUuid`"" -TimeoutSeconds 30
+$result = Run-CommandWithTimeout -Command "call `"$StopJobScript`" `"$fakeUuid`"" -TimeoutSeconds 30
 Assert-OutputContains -Output $result.Output -ExpectedText "STOP JOB" -TestDescription "STOP JOB header shown"
 Assert-OutputContains -Output $result.Output -ExpectedText "Internals Directory:" -TestDescription "Internals directory shown"
 
