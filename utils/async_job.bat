@@ -103,7 +103,7 @@ REM Create the launch script
 echo @echo off>"%LAUNCH_SCRIPT%"
 echo echo RUNNING^>"%STATUS_FILE%">>"%LAUNCH_SCRIPT%"
 echo echo %JOB_UUID% ^>NUL>>"%LAUNCH_SCRIPT%"
-echo powershell -NoProfile -ExecutionPolicy Bypass -File "%PID_SCRIPT%" ^>"%PID_FILE%" 2^>^&1>>"%LAUNCH_SCRIPT%"
+echo powershell -NoProfile -ExecutionPolicy Bypass -File "%PID_SCRIPT%" ^>"%PID_FILE%" 2^>^&1 >>"%LAUNCH_SCRIPT%"
 echo %COMMAND% 2^>"%STDERR_FILE%" ^>"%STDOUT_FILE%">>"%LAUNCH_SCRIPT%"
 echo if errorlevel 1 (echo FAILURE^>"%STATUS_FILE%") else (echo SUCCESS^>"%STATUS_FILE%")>>"%LAUNCH_SCRIPT%"
 
