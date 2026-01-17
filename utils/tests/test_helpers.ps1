@@ -91,12 +91,20 @@ function Assert-OutputContains {
         [string]$TestDescription
     )
     
+    # Handle null or empty output
+    if ([string]::IsNullOrEmpty($Output)) {
+        Write-TestFail "$TestDescription - Expected text not found: '$ExpectedText'"
+        Write-TestInfo "Actual output (truncated): <empty>"
+        return $false
+    }
+    
     if ($Output -like "*$ExpectedText*") {
         Write-TestPass "$TestDescription - Found expected text: '$ExpectedText'"
         return $true
     } else {
         Write-TestFail "$TestDescription - Expected text not found: '$ExpectedText'"
-        Write-TestInfo "Actual output (truncated): $($Output.Substring(0, [Math]::Min(500, $Output.Length)))"
+        $truncatedLength = [Math]::Min(500, $Output.Length)
+        Write-TestInfo "Actual output (truncated): $($Output.Substring(0, $truncatedLength))"
         return $false
     }
 }
@@ -145,12 +153,19 @@ function Assert-FileContains {
     }
     
     $content = Get-Content -Path $FilePath -Raw
+    if ([string]::IsNullOrEmpty($content)) {
+        Write-TestFail "$TestDescription - Expected content not found in file"
+        Write-TestInfo "File content: <empty>"
+        return $false
+    }
+    
     if ($content -like "*$ExpectedContent*") {
         Write-TestPass "$TestDescription - File contains expected content"
         return $true
     } else {
         Write-TestFail "$TestDescription - Expected content not found in file"
-        Write-TestInfo "File content: $($content.Substring(0, [Math]::Min(200, $content.Length)))"
+        $truncatedLength = [Math]::Min(200, $content.Length)
+        Write-TestInfo "File content: $($content.Substring(0, $truncatedLength))"
         return $false
     }
 }
@@ -269,27 +284,58 @@ function Run-CommandWithTimeout {
     $processInfo.UseShellExecute = $false
     $processInfo.CreateNoWindow = $true
     
-    $process = [System.Diagnostics.Process]::Start($processInfo)
+    $process = New-Object System.Diagnostics.Process
+    $process.StartInfo = $processInfo
     
-    $stdout = $process.StandardOutput.ReadToEndAsync()
-    $stderr = $process.StandardError.ReadToEndAsync()
+    # Use StringBuilder to capture output asynchronously
+    $stdoutBuilder = New-Object System.Text.StringBuilder
+    $stderrBuilder = New-Object System.Text.StringBuilder
     
-    $completed = $process.WaitForExit($TimeoutSeconds * 1000)
+    # Register event handlers for async output reading
+    $stdoutEvent = Register-ObjectEvent -InputObject $process -EventName OutputDataReceived -Action {
+        if ($null -ne $EventArgs.Data) {
+            $Event.MessageData.AppendLine($EventArgs.Data) | Out-Null
+        }
+    } -MessageData $stdoutBuilder
     
-    if (-not $completed) {
-        $process.Kill()
+    $stderrEvent = Register-ObjectEvent -InputObject $process -EventName ErrorDataReceived -Action {
+        if ($null -ne $EventArgs.Data) {
+            $Event.MessageData.AppendLine($EventArgs.Data) | Out-Null
+        }
+    } -MessageData $stderrBuilder
+    
+    try {
+        $process.Start() | Out-Null
+        $process.BeginOutputReadLine()
+        $process.BeginErrorReadLine()
+        
+        $completed = $process.WaitForExit($TimeoutSeconds * 1000)
+        
+        if (-not $completed) {
+            $process.Kill()
+            return @{
+                Output = $stdoutBuilder.ToString()
+                Error = "Process timed out after $TimeoutSeconds seconds"
+                ExitCode = -1
+                TimedOut = $true
+            }
+        }
+        
+        # Wait a bit for async handlers to complete
+        Start-Sleep -Milliseconds 100
+        
         return @{
-            Output = ""
-            Error = "Process timed out after $TimeoutSeconds seconds"
-            ExitCode = -1
-            TimedOut = $true
+            Output = $stdoutBuilder.ToString()
+            Error = $stderrBuilder.ToString()
+            ExitCode = $process.ExitCode
+            TimedOut = $false
         }
     }
-    
-    return @{
-        Output = $stdout.Result
-        Error = $stderr.Result
-        ExitCode = $process.ExitCode
-        TimedOut = $false
+    finally {
+        Unregister-Event -SourceIdentifier $stdoutEvent.Name -ErrorAction SilentlyContinue
+        Unregister-Event -SourceIdentifier $stderrEvent.Name -ErrorAction SilentlyContinue
+        Remove-Job -Name $stdoutEvent.Name -Force -ErrorAction SilentlyContinue
+        Remove-Job -Name $stderrEvent.Name -Force -ErrorAction SilentlyContinue
+        $process.Dispose()
     }
 }
