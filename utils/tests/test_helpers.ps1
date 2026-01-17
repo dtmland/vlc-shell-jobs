@@ -14,6 +14,9 @@ $script:TestsPassed = 0
 $script:TestsFailed = 0
 $script:TestsSkipped = 0
 
+# UUID pattern for job output parsing (format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx)
+$script:UUID_PATTERN = '[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}'
+
 function Write-TestHeader {
     param([string]$TestSuiteName)
     Write-Host ""
@@ -200,8 +203,8 @@ function Assert-ExitCodeNonZero {
 function Get-JobUuidFromOutput {
     param([string]$Output)
     
-    # Extract UUID from output - format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
-    $match = [regex]::Match($Output, 'Job UUID:\s*([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})')
+    # Extract UUID from output using the shared pattern constant
+    $match = [regex]::Match($Output, "Job UUID:\s*($script:UUID_PATTERN)")
     if ($match.Success) {
         return $match.Groups[1].Value
     }
@@ -244,7 +247,11 @@ function Cleanup-JobDirectory {
     
     $jobDir = "$env:APPDATA\jobrunner\$JobUuid"
     if (Test-Path $jobDir) {
-        Remove-Item -Path $jobDir -Recurse -Force -ErrorAction SilentlyContinue
+        try {
+            Remove-Item -Path $jobDir -Recurse -Force
+        } catch {
+            Write-TestInfo "Warning: Failed to cleanup job directory: $jobDir - $($_.Exception.Message)"
+        }
     }
 }
 
@@ -286,6 +293,3 @@ function Run-CommandWithTimeout {
         TimedOut = $false
     }
 }
-
-# Export functions
-Export-ModuleMember -Function *

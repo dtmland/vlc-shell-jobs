@@ -38,15 +38,18 @@ Assert-OutputContains -Output $result.Output -ExpectedText "ERROR: Job directory
 Write-TestCase "Stop a running job"
 
 # Launch a long-running job in the background (ping with many iterations)
-$asyncProcess = Start-Process -FilePath "cmd.exe" -ArgumentList "/c `"$AsyncJobScript`" `"ping -n 60 127.0.0.1`" `"%USERPROFILE%`" `"LongRunningJob`"" -PassThru -RedirectStandardOutput "$env:TEMP\async_test_output.txt" -NoNewWindow
+$outputFile = "$env:TEMP\async_test_output.txt"
+$cmdArgs = "/c `"$AsyncJobScript`" `"ping -n 60 127.0.0.1`" `"%USERPROFILE%`" `"LongRunningJob`""
+$asyncProcess = Start-Process -FilePath "cmd.exe" -ArgumentList $cmdArgs `
+    -PassThru -RedirectStandardOutput $outputFile -NoNewWindow
 
 # Wait for job to start and get UUID
 Start-Sleep -Seconds 5
 
 # Read the output to get UUID
 $asyncOutput = ""
-if (Test-Path "$env:TEMP\async_test_output.txt") {
-    $asyncOutput = Get-Content "$env:TEMP\async_test_output.txt" -Raw -ErrorAction SilentlyContinue
+if (Test-Path $outputFile) {
+    $asyncOutput = Get-Content $outputFile -Raw -ErrorAction SilentlyContinue
 }
 
 $jobUuid = Get-JobUuidFromOutput -Output $asyncOutput
@@ -84,10 +87,12 @@ if ($jobUuid) {
     }
     
     # Clean up
-    try {
-        $asyncProcess.Kill()
-    } catch {
-        # Process may have already exited
+    if (-not $asyncProcess.HasExited) {
+        try {
+            $asyncProcess.Kill()
+        } catch {
+            Write-TestInfo "Note: Process may have already exited"
+        }
     }
     Cleanup-JobDirectory -JobUuid $jobUuid
 } else {
@@ -95,8 +100,8 @@ if ($jobUuid) {
 }
 
 # Clean up temp file
-if (Test-Path "$env:TEMP\async_test_output.txt") {
-    Remove-Item "$env:TEMP\async_test_output.txt" -Force -ErrorAction SilentlyContinue
+if (Test-Path $outputFile) {
+    Remove-Item $outputFile -Force -ErrorAction SilentlyContinue
 }
 
 # ============================================================================
@@ -135,13 +140,16 @@ if ($jobUuid) {
 Write-TestCase "Stop job shows stdout/stderr at time of stop"
 
 # Launch a job that outputs something and runs long
-$asyncProcess = Start-Process -FilePath "cmd.exe" -ArgumentList "/c `"$AsyncJobScript`" `"echo output_before_stop && ping -n 30 127.0.0.1`"" -PassThru -RedirectStandardOutput "$env:TEMP\async_test_output2.txt" -NoNewWindow
+$outputFile2 = "$env:TEMP\async_test_output2.txt"
+$cmdArgs2 = "/c `"$AsyncJobScript`" `"echo output_before_stop && ping -n 30 127.0.0.1`""
+$asyncProcess = Start-Process -FilePath "cmd.exe" -ArgumentList $cmdArgs2 `
+    -PassThru -RedirectStandardOutput $outputFile2 -NoNewWindow
 
 Start-Sleep -Seconds 5
 
 $asyncOutput = ""
-if (Test-Path "$env:TEMP\async_test_output2.txt") {
-    $asyncOutput = Get-Content "$env:TEMP\async_test_output2.txt" -Raw -ErrorAction SilentlyContinue
+if (Test-Path $outputFile2) {
+    $asyncOutput = Get-Content $outputFile2 -Raw -ErrorAction SilentlyContinue
 }
 
 $jobUuid = Get-JobUuidFromOutput -Output $asyncOutput
@@ -152,16 +160,20 @@ if ($jobUuid) {
     Assert-OutputContains -Output $stopResult.Output -ExpectedText "STDOUT (at time of stop)" -TestDescription "Shows stdout section"
     Assert-OutputContains -Output $stopResult.Output -ExpectedText "STDERR (at time of stop)" -TestDescription "Shows stderr section"
     
-    try {
-        $asyncProcess.Kill()
-    } catch { }
+    if (-not $asyncProcess.HasExited) {
+        try {
+            $asyncProcess.Kill()
+        } catch {
+            Write-TestInfo "Note: Process may have already exited"
+        }
+    }
     Cleanup-JobDirectory -JobUuid $jobUuid
 } else {
     Write-TestSkip "Could not get UUID from async job output"
 }
 
-if (Test-Path "$env:TEMP\async_test_output2.txt") {
-    Remove-Item "$env:TEMP\async_test_output2.txt" -Force -ErrorAction SilentlyContinue
+if (Test-Path $outputFile2) {
+    Remove-Item $outputFile2 -Force -ErrorAction SilentlyContinue
 }
 
 # ============================================================================

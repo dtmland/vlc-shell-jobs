@@ -38,13 +38,16 @@ Assert-OutputContains -Output $result.Output -ExpectedText "ERROR: Job directory
 Write-TestCase "Check running job shows RUNNING status"
 
 # Launch a long-running job
-$asyncProcess = Start-Process -FilePath "cmd.exe" -ArgumentList "/c `"$AsyncJobScript`" `"ping -n 30 127.0.0.1`" `"%USERPROFILE%`" `"LongJob`"" -PassThru -RedirectStandardOutput "$env:TEMP\check_test_output.txt" -NoNewWindow
+$outputFile = "$env:TEMP\check_test_output.txt"
+$cmdArgs = "/c `"$AsyncJobScript`" `"ping -n 30 127.0.0.1`" `"%USERPROFILE%`" `"LongJob`""
+$asyncProcess = Start-Process -FilePath "cmd.exe" -ArgumentList $cmdArgs `
+    -PassThru -RedirectStandardOutput $outputFile -NoNewWindow
 
 Start-Sleep -Seconds 5
 
 $asyncOutput = ""
-if (Test-Path "$env:TEMP\check_test_output.txt") {
-    $asyncOutput = Get-Content "$env:TEMP\check_test_output.txt" -Raw -ErrorAction SilentlyContinue
+if (Test-Path $outputFile) {
+    $asyncOutput = Get-Content $outputFile -Raw -ErrorAction SilentlyContinue
 }
 
 $jobUuid = Get-JobUuidFromOutput -Output $asyncOutput
@@ -67,14 +70,20 @@ if ($jobUuid) {
     
     # Stop and clean up
     Run-CommandWithTimeout -Command "`"$StopJobScript`" `"$jobUuid`"" -TimeoutSeconds 30 | Out-Null
-    try { $asyncProcess.Kill() } catch { }
+    if (-not $asyncProcess.HasExited) {
+        try {
+            $asyncProcess.Kill()
+        } catch {
+            Write-TestInfo "Note: Process may have already exited"
+        }
+    }
     Cleanup-JobDirectory -JobUuid $jobUuid
 } else {
     Write-TestSkip "Could not get UUID from async job output"
 }
 
-if (Test-Path "$env:TEMP\check_test_output.txt") {
-    Remove-Item "$env:TEMP\check_test_output.txt" -Force -ErrorAction SilentlyContinue
+if (Test-Path $outputFile) {
+    Remove-Item $outputFile -Force -ErrorAction SilentlyContinue
 }
 
 # ============================================================================
@@ -222,13 +231,16 @@ Cleanup-JobDirectory -JobUuid $fakeUuid
 Write-TestCase "Check job while async_job is running (parallel)"
 
 # Start a long-running job
-$asyncProcess = Start-Process -FilePath "cmd.exe" -ArgumentList "/c `"$AsyncJobScript`" `"ping -n 20 127.0.0.1`"" -PassThru -RedirectStandardOutput "$env:TEMP\parallel_test.txt" -NoNewWindow
+$parallelOutputFile = "$env:TEMP\parallel_test.txt"
+$parallelCmdArgs = "/c `"$AsyncJobScript`" `"ping -n 20 127.0.0.1`""
+$asyncProcess = Start-Process -FilePath "cmd.exe" -ArgumentList $parallelCmdArgs `
+    -PassThru -RedirectStandardOutput $parallelOutputFile -NoNewWindow
 
 Start-Sleep -Seconds 4
 
 $asyncOutput = ""
-if (Test-Path "$env:TEMP\parallel_test.txt") {
-    $asyncOutput = Get-Content "$env:TEMP\parallel_test.txt" -Raw -ErrorAction SilentlyContinue
+if (Test-Path $parallelOutputFile) {
+    $asyncOutput = Get-Content $parallelOutputFile -Raw -ErrorAction SilentlyContinue
 }
 
 $jobUuid = Get-JobUuidFromOutput -Output $asyncOutput
@@ -247,14 +259,20 @@ if ($jobUuid) {
     
     # Stop and clean up
     Run-CommandWithTimeout -Command "`"$StopJobScript`" `"$jobUuid`"" -TimeoutSeconds 30 | Out-Null
-    try { $asyncProcess.Kill() } catch { }
+    if (-not $asyncProcess.HasExited) {
+        try {
+            $asyncProcess.Kill()
+        } catch {
+            Write-TestInfo "Note: Process may have already exited"
+        }
+    }
     Cleanup-JobDirectory -JobUuid $jobUuid
 } else {
     Write-TestSkip "Could not get UUID from async job output"
 }
 
-if (Test-Path "$env:TEMP\parallel_test.txt") {
-    Remove-Item "$env:TEMP\parallel_test.txt" -Force -ErrorAction SilentlyContinue
+if (Test-Path $parallelOutputFile) {
+    Remove-Item $parallelOutputFile -Force -ErrorAction SilentlyContinue
 }
 
 # ============================================================================
