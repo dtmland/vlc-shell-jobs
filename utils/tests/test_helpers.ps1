@@ -291,20 +291,23 @@ function Run-CommandWithTimeout {
     $stdoutBuilder = New-Object System.Text.StringBuilder
     $stderrBuilder = New-Object System.Text.StringBuilder
     
-    # Register event handlers for async output reading
-    $stdoutEvent = Register-ObjectEvent -InputObject $process -EventName OutputDataReceived -Action {
-        if ($null -ne $EventArgs.Data) {
-            $Event.MessageData.AppendLine($EventArgs.Data) | Out-Null
-        }
-    } -MessageData $stdoutBuilder
-    
-    $stderrEvent = Register-ObjectEvent -InputObject $process -EventName ErrorDataReceived -Action {
-        if ($null -ne $EventArgs.Data) {
-            $Event.MessageData.AppendLine($EventArgs.Data) | Out-Null
-        }
-    } -MessageData $stderrBuilder
+    $stdoutEvent = $null
+    $stderrEvent = $null
     
     try {
+        # Register event handlers for async output reading
+        $stdoutEvent = Register-ObjectEvent -InputObject $process -EventName OutputDataReceived -Action {
+            if ($null -ne $EventArgs.Data) {
+                $Event.MessageData.AppendLine($EventArgs.Data) | Out-Null
+            }
+        } -MessageData $stdoutBuilder
+        
+        $stderrEvent = Register-ObjectEvent -InputObject $process -EventName ErrorDataReceived -Action {
+            if ($null -ne $EventArgs.Data) {
+                $Event.MessageData.AppendLine($EventArgs.Data) | Out-Null
+            }
+        } -MessageData $stderrBuilder
+        
         $process.Start() | Out-Null
         $process.BeginOutputReadLine()
         $process.BeginErrorReadLine()
@@ -321,8 +324,9 @@ function Run-CommandWithTimeout {
             }
         }
         
-        # Wait a bit for async handlers to complete
-        Start-Sleep -Milliseconds 100
+        # Call WaitForExit() without timeout to ensure async event handlers have completed
+        # This is the recommended approach per Microsoft documentation
+        $process.WaitForExit()
         
         return @{
             Output = $stdoutBuilder.ToString()
@@ -332,10 +336,14 @@ function Run-CommandWithTimeout {
         }
     }
     finally {
-        Unregister-Event -SourceIdentifier $stdoutEvent.Name -ErrorAction SilentlyContinue
-        Unregister-Event -SourceIdentifier $stderrEvent.Name -ErrorAction SilentlyContinue
-        Remove-Job -Name $stdoutEvent.Name -Force -ErrorAction SilentlyContinue
-        Remove-Job -Name $stderrEvent.Name -Force -ErrorAction SilentlyContinue
+        if ($null -ne $stdoutEvent) {
+            Unregister-Event -SourceIdentifier $stdoutEvent.Name -ErrorAction SilentlyContinue
+            Remove-Job -Name $stdoutEvent.Name -Force -ErrorAction SilentlyContinue
+        }
+        if ($null -ne $stderrEvent) {
+            Unregister-Event -SourceIdentifier $stderrEvent.Name -ErrorAction SilentlyContinue
+            Remove-Job -Name $stderrEvent.Name -Force -ErrorAction SilentlyContinue
+        }
         $process.Dispose()
     }
 }
