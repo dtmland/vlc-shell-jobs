@@ -2,12 +2,13 @@
 # PowerShell helper functions for testing batch scripts
 # This module provides utility functions for running tests and validating output
 
-# Colors for test output
-$script:GREEN = "`e[32m"
-$script:RED = "`e[31m"
-$script:YELLOW = "`e[33m"
-$script:CYAN = "`e[36m"
-$script:RESET = "`e[0m"
+# Colors for test output - use [char]27 for compatibility with PowerShell 5.1
+$script:ESC = [char]27
+$script:GREEN = "$($script:ESC)[32m"
+$script:RED = "$($script:ESC)[31m"
+$script:YELLOW = "$($script:ESC)[33m"
+$script:CYAN = "$($script:ESC)[36m"
+$script:RESET = "$($script:ESC)[0m"
 
 # Test counters
 $script:TestsPassed = 0
@@ -276,74 +277,49 @@ function Run-CommandWithTimeout {
         [int]$TimeoutSeconds = 60
     )
     
-    $processInfo = New-Object System.Diagnostics.ProcessStartInfo
-    $processInfo.FileName = "cmd.exe"
-    $processInfo.Arguments = "/c $Command"
-    $processInfo.RedirectStandardOutput = $true
-    $processInfo.RedirectStandardError = $true
-    $processInfo.UseShellExecute = $false
-    $processInfo.CreateNoWindow = $true
-    
-    $process = New-Object System.Diagnostics.Process
-    $process.StartInfo = $processInfo
-    
-    # Use StringBuilder to capture output asynchronously
-    $stdoutBuilder = New-Object System.Text.StringBuilder
-    $stderrBuilder = New-Object System.Text.StringBuilder
-    
-    $stdoutEvent = $null
-    $stderrEvent = $null
+    # Use a temporary file approach for more reliable output capture
+    $tempStdout = [System.IO.Path]::GetTempFileName()
+    $tempStderr = [System.IO.Path]::GetTempFileName()
     
     try {
-        # Register event handlers for async output reading
-        $stdoutEvent = Register-ObjectEvent -InputObject $process -EventName OutputDataReceived -Action {
-            if ($null -ne $EventArgs.Data) {
-                $Event.MessageData.AppendLine($EventArgs.Data) | Out-Null
-            }
-        } -MessageData $stdoutBuilder
+        $processInfo = New-Object System.Diagnostics.ProcessStartInfo
+        $processInfo.FileName = "cmd.exe"
+        $processInfo.Arguments = "/c $Command > `"$tempStdout`" 2> `"$tempStderr`""
+        $processInfo.UseShellExecute = $false
+        $processInfo.CreateNoWindow = $true
         
-        $stderrEvent = Register-ObjectEvent -InputObject $process -EventName ErrorDataReceived -Action {
-            if ($null -ne $EventArgs.Data) {
-                $Event.MessageData.AppendLine($EventArgs.Data) | Out-Null
-            }
-        } -MessageData $stderrBuilder
+        $process = New-Object System.Diagnostics.Process
+        $process.StartInfo = $processInfo
         
         $process.Start() | Out-Null
-        $process.BeginOutputReadLine()
-        $process.BeginErrorReadLine()
         
         $completed = $process.WaitForExit($TimeoutSeconds * 1000)
         
         if (-not $completed) {
             $process.Kill()
+            $stdout = if (Test-Path $tempStdout) { Get-Content $tempStdout -Raw } else { "" }
             return @{
-                Output = $stdoutBuilder.ToString()
+                Output = $stdout
                 Error = "Process timed out after $TimeoutSeconds seconds"
                 ExitCode = -1
                 TimedOut = $true
             }
         }
         
-        # Call WaitForExit() without timeout to ensure async event handlers have completed
-        # This is the recommended approach per Microsoft documentation
-        $process.WaitForExit()
+        # Read captured output from temp files
+        $stdout = if (Test-Path $tempStdout) { Get-Content $tempStdout -Raw } else { "" }
+        $stderr = if (Test-Path $tempStderr) { Get-Content $tempStderr -Raw } else { "" }
         
         return @{
-            Output = $stdoutBuilder.ToString()
-            Error = $stderrBuilder.ToString()
+            Output = $stdout
+            Error = $stderr
             ExitCode = $process.ExitCode
             TimedOut = $false
         }
     }
     finally {
-        if ($null -ne $stdoutEvent) {
-            Unregister-Event -SourceIdentifier $stdoutEvent.Name -ErrorAction SilentlyContinue
-            Remove-Job -Name $stdoutEvent.Name -Force -ErrorAction SilentlyContinue
-        }
-        if ($null -ne $stderrEvent) {
-            Unregister-Event -SourceIdentifier $stderrEvent.Name -ErrorAction SilentlyContinue
-            Remove-Job -Name $stderrEvent.Name -Force -ErrorAction SilentlyContinue
-        }
-        $process.Dispose()
+        if (Test-Path $tempStdout) { Remove-Item $tempStdout -Force -ErrorAction SilentlyContinue }
+        if (Test-Path $tempStderr) { Remove-Item $tempStderr -Force -ErrorAction SilentlyContinue }
+        if ($null -ne $process) { $process.Dispose() }
     }
 }
