@@ -101,7 +101,7 @@ echo ===========================================================================
 echo.
 
 REM Update status file to indicate stopped
-echo STOPPED > "%STATUS_FILE%"
+echo STOPPED>"%STATUS_FILE%"
 echo Job status updated to STOPPED.
 
 REM Show final output

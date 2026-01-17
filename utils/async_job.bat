@@ -100,12 +100,12 @@ REM Create PowerShell script to get parent PID (avoids escaping issues)
 echo (Get-CimInstance Win32_Process -Filter "ProcessId=$($PID)").ParentProcessId > "%PID_SCRIPT%"
 
 REM Create the launch script
-echo @echo off > "%LAUNCH_SCRIPT%"
-echo echo RUNNING^>"%STATUS_FILE%" >> "%LAUNCH_SCRIPT%"
-echo echo %JOB_UUID% ^>NUL >> "%LAUNCH_SCRIPT%"
-echo powershell -NoProfile -ExecutionPolicy Bypass -File "%PID_SCRIPT%" ^>"%PID_FILE%" 2^>^&1 >> "%LAUNCH_SCRIPT%"
-echo %COMMAND% 2^>"%STDERR_FILE%" ^>"%STDOUT_FILE%" >> "%LAUNCH_SCRIPT%"
-echo if errorlevel 1 (echo FAILURE^>"%STATUS_FILE%") else (echo SUCCESS^>"%STATUS_FILE%") >> "%LAUNCH_SCRIPT%"
+echo @echo off>"%LAUNCH_SCRIPT%"
+echo echo RUNNING^>"%STATUS_FILE%">>"%LAUNCH_SCRIPT%"
+echo echo %JOB_UUID% ^>NUL>>"%LAUNCH_SCRIPT%"
+echo powershell -NoProfile -ExecutionPolicy Bypass -File "%PID_SCRIPT%" ^>"%PID_FILE%" 2^>^&1>>"%LAUNCH_SCRIPT%"
+echo %COMMAND% 2^>"%STDERR_FILE%" ^>"%STDOUT_FILE%">>"%LAUNCH_SCRIPT%"
+echo if errorlevel 1 (echo FAILURE^>"%STATUS_FILE%") else (echo SUCCESS^>"%STATUS_FILE%")>>"%LAUNCH_SCRIPT%"
 
 start "%JOB_NAME%" /d "%COMMAND_DIR%" /min cmd.exe /c "%LAUNCH_SCRIPT%"
 
@@ -152,6 +152,8 @@ if exist "%STATUS_FILE%" (
     findstr /C:"SUCCESS" "%STATUS_FILE%" >nul 2>&1
     if not errorlevel 1 goto :JOB_COMPLETE
     findstr /C:"FAILURE" "%STATUS_FILE%" >nul 2>&1
+    if not errorlevel 1 goto :JOB_COMPLETE
+    findstr /C:"STOPPED" "%STATUS_FILE%" >nul 2>&1
     if not errorlevel 1 goto :JOB_COMPLETE
 )
 
