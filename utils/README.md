@@ -116,7 +116,7 @@ stop_job.bat "78f734c4-496c-40d0-83f4-127d43e97195"
 
 **Features:**
 - Finds the job by UUID in `%APPDATA%\jobrunner\<uuid>\`
-- Uses process tree walking to stop all child processes
+- Uses process tree walking to stop all child processes (via `kill_tree.ps1`)
 - Updates job status to STOPPED
 - Shows final stdout/stderr at time of stop
 
@@ -124,6 +124,21 @@ stop_job.bat "78f734c4-496c-40d0-83f4-127d43e97195"
 1. Run `async_job.bat` and note the Job UUID displayed
 2. Open a new command prompt
 3. Run `stop_job.bat "your-job-uuid"` to stop the job
+
+---
+
+### `kill_tree.ps1`
+
+PowerShell script that walks a process tree and kills processes matching a UUID.
+
+**Based on:** The Kill-Tree function from `executor.stop_job()` in `executor.lua`
+
+**Usage:**
+```powershell
+powershell -File kill_tree.ps1 -ProcessId <pid> -MatchString "<uuid>"
+```
+
+**Note:** This script is called automatically by `stop_job.bat`. You don't normally need to run it directly.
 
 ---
 
