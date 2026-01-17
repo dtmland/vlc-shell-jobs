@@ -57,9 +57,16 @@ Write-TestCase "Stop a running job"
 
 # Launch a long-running job in the background (ping with many iterations)
 $outputFile = "$env:TEMP\async_test_output.txt"
-$cmdArgs = "/c `"$AsyncJobScript`" `"ping -n 60 127.0.0.1`" `"%USERPROFILE%`" `"LongRunningJob`""
-$asyncProcess = Start-Process -FilePath "cmd.exe" -ArgumentList $cmdArgs `
-    -PassThru -RedirectStandardOutput $outputFile -NoNewWindow
+
+# Create a temp batch file to launch the async job (avoids quoting issues)
+$launchBatch = [System.IO.Path]::GetTempFileName() + ".bat"
+$launchContent = @"
+@echo off
+call "$AsyncJobScript" "ping -n 60 127.0.0.1" "%USERPROFILE%" "LongRunningJob"
+"@
+[System.IO.File]::WriteAllText($launchBatch, $launchContent)
+
+$asyncProcess = Start-Process -FilePath $launchBatch -PassThru -RedirectStandardOutput $outputFile -NoNewWindow
 
 # Wait for job to start and get UUID
 Start-Sleep -Seconds 5
@@ -117,9 +124,12 @@ if ($jobUuid) {
     Write-TestSkip "Could not get UUID from async job output"
 }
 
-# Clean up temp file
+# Clean up temp files
 if (Test-Path $outputFile) {
     Remove-Item $outputFile -Force -ErrorAction SilentlyContinue
+}
+if (Test-Path $launchBatch) {
+    Remove-Item $launchBatch -Force -ErrorAction SilentlyContinue
 }
 
 # ============================================================================
@@ -159,9 +169,16 @@ Write-TestCase "Stop job shows stdout/stderr at time of stop"
 
 # Launch a job that outputs something and runs long
 $outputFile2 = "$env:TEMP\async_test_output2.txt"
-$cmdArgs2 = "/c `"$AsyncJobScript`" `"echo output_before_stop && ping -n 30 127.0.0.1`""
-$asyncProcess = Start-Process -FilePath "cmd.exe" -ArgumentList $cmdArgs2 `
-    -PassThru -RedirectStandardOutput $outputFile2 -NoNewWindow
+
+# Create a temp batch file to launch the async job (avoids quoting issues)
+$launchBatch2 = [System.IO.Path]::GetTempFileName() + ".bat"
+$launchContent2 = @"
+@echo off
+call "$AsyncJobScript" "echo output_before_stop ^&^& ping -n 30 127.0.0.1"
+"@
+[System.IO.File]::WriteAllText($launchBatch2, $launchContent2)
+
+$asyncProcess = Start-Process -FilePath $launchBatch2 -PassThru -RedirectStandardOutput $outputFile2 -NoNewWindow
 
 Start-Sleep -Seconds 5
 
@@ -192,6 +209,9 @@ if ($jobUuid) {
 
 if (Test-Path $outputFile2) {
     Remove-Item $outputFile2 -Force -ErrorAction SilentlyContinue
+}
+if (Test-Path $launchBatch2) {
+    Remove-Item $launchBatch2 -Force -ErrorAction SilentlyContinue
 }
 
 # ============================================================================
