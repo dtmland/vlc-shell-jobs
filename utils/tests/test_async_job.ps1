@@ -102,7 +102,9 @@ if ($jobUuid) {
 # Test 5: Failed job has FAILURE status
 # ============================================================================
 Write-TestCase "Failed job shows FAILURE status"
-$result = Run-CommandWithTimeout -Command "call `"$AsyncJobScript`" `"exit 1`"" -TimeoutSeconds 30
+# Use 'cmd /c exit 1' instead of 'exit 1' because 'exit' terminates the shell
+# before the errorlevel can be captured by the launch script
+$result = Run-CommandWithTimeout -Command "call `"$AsyncJobScript`" `"cmd /c exit 1`"" -TimeoutSeconds 30
 Assert-OutputContains -Output $result.Output -ExpectedText "FAILURE" -TestDescription "Job shows FAILURE status"
 Assert-OutputContains -Output $result.Output -ExpectedText "JOB COMPLETED" -TestDescription "Job completed message shown"
 
