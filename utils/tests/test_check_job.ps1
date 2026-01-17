@@ -151,9 +151,10 @@ $fakeUuid = [guid]::NewGuid().ToString()
 $fakeDir = "$env:APPDATA\jobrunner\$fakeUuid"
 New-Item -Path $fakeDir -ItemType Directory -Force | Out-Null
 # Use WriteAllText to avoid BOM and ensure clean file content
-[System.IO.File]::WriteAllText("$fakeDir\job_status.txt", "RUNNING")
-[System.IO.File]::WriteAllText("$fakeDir\job_pid.txt", "12345")
-[System.IO.File]::WriteAllText("$fakeDir\stdout.txt", "test stdout content")
+# Add trailing newlines to ensure for /f reads the content correctly in batch
+[System.IO.File]::WriteAllText("$fakeDir\job_status.txt", "RUNNING" + [Environment]::NewLine)
+[System.IO.File]::WriteAllText("$fakeDir\job_pid.txt", "12345" + [Environment]::NewLine)
+[System.IO.File]::WriteAllText("$fakeDir\stdout.txt", "test stdout content" + [Environment]::NewLine)
 [System.IO.File]::WriteAllText("$fakeDir\stderr.txt", "")
 
 $result = Run-CommandWithTimeout -Command "call `"$CheckJobScript`" `"$fakeUuid`"" -TimeoutSeconds 10
@@ -170,9 +171,9 @@ Write-TestCase "Check job shows stdout content"
 $fakeUuid = [guid]::NewGuid().ToString()
 $fakeDir = "$env:APPDATA\jobrunner\$fakeUuid"
 New-Item -Path $fakeDir -ItemType Directory -Force | Out-Null
-[System.IO.File]::WriteAllText("$fakeDir\job_status.txt", "SUCCESS")
-[System.IO.File]::WriteAllText("$fakeDir\job_pid.txt", "99999")
-[System.IO.File]::WriteAllText("$fakeDir\stdout.txt", "hello from stdout test")
+[System.IO.File]::WriteAllText("$fakeDir\job_status.txt", "SUCCESS" + [Environment]::NewLine)
+[System.IO.File]::WriteAllText("$fakeDir\job_pid.txt", "99999" + [Environment]::NewLine)
+[System.IO.File]::WriteAllText("$fakeDir\stdout.txt", "hello from stdout test" + [Environment]::NewLine)
 [System.IO.File]::WriteAllText("$fakeDir\stderr.txt", "")
 
 $result = Run-CommandWithTimeout -Command "call `"$CheckJobScript`" `"$fakeUuid`"" -TimeoutSeconds 10
@@ -189,10 +190,10 @@ Write-TestCase "Check job shows stderr content"
 $fakeUuid = [guid]::NewGuid().ToString()
 $fakeDir = "$env:APPDATA\jobrunner\$fakeUuid"
 New-Item -Path $fakeDir -ItemType Directory -Force | Out-Null
-[System.IO.File]::WriteAllText("$fakeDir\job_status.txt", "FAILURE")
-[System.IO.File]::WriteAllText("$fakeDir\job_pid.txt", "88888")
+[System.IO.File]::WriteAllText("$fakeDir\job_status.txt", "FAILURE" + [Environment]::NewLine)
+[System.IO.File]::WriteAllText("$fakeDir\job_pid.txt", "88888" + [Environment]::NewLine)
 [System.IO.File]::WriteAllText("$fakeDir\stdout.txt", "")
-[System.IO.File]::WriteAllText("$fakeDir\stderr.txt", "error from stderr test")
+[System.IO.File]::WriteAllText("$fakeDir\stderr.txt", "error from stderr test" + [Environment]::NewLine)
 
 $result = Run-CommandWithTimeout -Command "call `"$CheckJobScript`" `"$fakeUuid`"" -TimeoutSeconds 10
 Assert-OutputContains -Output $result.Output -ExpectedText "STDERR" -TestDescription "STDERR section shown"
@@ -208,9 +209,9 @@ Write-TestCase "Custom tail lines parameter"
 $fakeUuid = [guid]::NewGuid().ToString()
 $fakeDir = "$env:APPDATA\jobrunner\$fakeUuid"
 New-Item -Path $fakeDir -ItemType Directory -Force | Out-Null
-[System.IO.File]::WriteAllText("$fakeDir\job_status.txt", "SUCCESS")
-[System.IO.File]::WriteAllText("$fakeDir\job_pid.txt", "77777")
-[System.IO.File]::WriteAllText("$fakeDir\stdout.txt", "line1`r`nline2`r`nline3`r`nline4`r`nline5")
+[System.IO.File]::WriteAllText("$fakeDir\job_status.txt", "SUCCESS" + [Environment]::NewLine)
+[System.IO.File]::WriteAllText("$fakeDir\job_pid.txt", "77777" + [Environment]::NewLine)
+[System.IO.File]::WriteAllText("$fakeDir\stdout.txt", "line1`r`nline2`r`nline3`r`nline4`r`nline5" + [Environment]::NewLine)
 [System.IO.File]::WriteAllText("$fakeDir\stderr.txt", "")
 
 $result = Run-CommandWithTimeout -Command "call `"$CheckJobScript`" `"$fakeUuid`" 100" -TimeoutSeconds 10
@@ -226,9 +227,9 @@ Write-TestCase "Default tail lines is 50"
 $fakeUuid = [guid]::NewGuid().ToString()
 $fakeDir = "$env:APPDATA\jobrunner\$fakeUuid"
 New-Item -Path $fakeDir -ItemType Directory -Force | Out-Null
-[System.IO.File]::WriteAllText("$fakeDir\job_status.txt", "SUCCESS")
-[System.IO.File]::WriteAllText("$fakeDir\job_pid.txt", "66666")
-[System.IO.File]::WriteAllText("$fakeDir\stdout.txt", "test")
+[System.IO.File]::WriteAllText("$fakeDir\job_status.txt", "SUCCESS" + [Environment]::NewLine)
+[System.IO.File]::WriteAllText("$fakeDir\job_pid.txt", "66666" + [Environment]::NewLine)
+[System.IO.File]::WriteAllText("$fakeDir\stdout.txt", "test" + [Environment]::NewLine)
 [System.IO.File]::WriteAllText("$fakeDir\stderr.txt", "")
 
 $result = Run-CommandWithTimeout -Command "call `"$CheckJobScript`" `"$fakeUuid`"" -TimeoutSeconds 10
@@ -244,9 +245,9 @@ Write-TestCase "Session files location shown"
 $fakeUuid = [guid]::NewGuid().ToString()
 $fakeDir = "$env:APPDATA\jobrunner\$fakeUuid"
 New-Item -Path $fakeDir -ItemType Directory -Force | Out-Null
-[System.IO.File]::WriteAllText("$fakeDir\job_status.txt", "SUCCESS")
-[System.IO.File]::WriteAllText("$fakeDir\job_pid.txt", "55555")
-[System.IO.File]::WriteAllText("$fakeDir\stdout.txt", "test")
+[System.IO.File]::WriteAllText("$fakeDir\job_status.txt", "SUCCESS" + [Environment]::NewLine)
+[System.IO.File]::WriteAllText("$fakeDir\job_pid.txt", "55555" + [Environment]::NewLine)
+[System.IO.File]::WriteAllText("$fakeDir\stdout.txt", "test" + [Environment]::NewLine)
 [System.IO.File]::WriteAllText("$fakeDir\stderr.txt", "")
 
 $result = Run-CommandWithTimeout -Command "call `"$CheckJobScript`" `"$fakeUuid`"" -TimeoutSeconds 10
@@ -321,9 +322,9 @@ Write-TestCase "Internals directory path shown"
 $fakeUuid = [guid]::NewGuid().ToString()
 $fakeDir = "$env:APPDATA\jobrunner\$fakeUuid"
 New-Item -Path $fakeDir -ItemType Directory -Force | Out-Null
-[System.IO.File]::WriteAllText("$fakeDir\job_status.txt", "RUNNING")
-[System.IO.File]::WriteAllText("$fakeDir\job_pid.txt", "44444")
-[System.IO.File]::WriteAllText("$fakeDir\stdout.txt", "test")
+[System.IO.File]::WriteAllText("$fakeDir\job_status.txt", "RUNNING" + [Environment]::NewLine)
+[System.IO.File]::WriteAllText("$fakeDir\job_pid.txt", "44444" + [Environment]::NewLine)
+[System.IO.File]::WriteAllText("$fakeDir\stdout.txt", "test" + [Environment]::NewLine)
 [System.IO.File]::WriteAllText("$fakeDir\stderr.txt", "")
 
 $result = Run-CommandWithTimeout -Command "call `"$CheckJobScript`" `"$fakeUuid`"" -TimeoutSeconds 10
