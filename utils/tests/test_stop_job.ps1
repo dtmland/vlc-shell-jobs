@@ -8,7 +8,7 @@ param(
 )
 
 # Import test helpers
-. "$PSScriptRoot\test_helpers.ps1"
+. "$PSScriptRoot\TestLib.ps1"
 
 # Initialize test log directory for storing failed test output
 Initialize-TestLogDir

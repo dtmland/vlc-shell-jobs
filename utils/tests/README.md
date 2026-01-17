@@ -42,7 +42,7 @@ Each test suite consists of:
 
 1. **BAT wrapper** (`test_<name>.bat`) - Entry point for running tests from command prompt
 2. **PowerShell test script** (`test_<name>.ps1`) - Contains the actual test cases
-3. **Shared helpers** (`test_helpers.ps1`) - Common utility functions for all tests
+3. **Shared helpers** (`TestLib.ps1`) - Common utility functions for all tests
 
 ## Test Cases
 
@@ -108,7 +108,7 @@ Tests for `stop_job.bat` - stopping running jobs:
 
 ## Test Helpers
 
-The `test_helpers.ps1` module provides:
+The `TestLib.ps1` module provides:
 
 - **Output Formatting**: Colored test output with PASS/FAIL indicators
 - **Assertions**: 

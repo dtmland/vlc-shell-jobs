@@ -2,7 +2,7 @@
 REM ============================================================================
 REM verify_test_helpers.bat
 REM
-REM Diagnostic script to verify test_helpers.ps1 functions are working
+REM Diagnostic script to verify TestLib.ps1 functions are working
 REM Run this to debug issues with the test infrastructure
 REM ============================================================================
 

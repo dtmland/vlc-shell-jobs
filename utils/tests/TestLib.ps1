@@ -1,4 +1,4 @@
-# test_helpers.ps1
+# TestLib.ps1
 # PowerShell helper functions for testing batch scripts
 # This module provides utility functions for running tests and validating output
 

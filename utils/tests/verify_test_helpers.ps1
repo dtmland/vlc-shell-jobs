@@ -1,5 +1,5 @@
 # verify_test_helpers.ps1
-# Diagnostic script to verify test_helpers.ps1 functions are working correctly
+# Diagnostic script to verify TestLib.ps1 functions are working correctly
 # Run this to debug issues with the test infrastructure
 
 Write-Host "============================================================================"
@@ -8,9 +8,9 @@ Write-Host "====================================================================
 Write-Host ""
 
 # Import test helpers
-Write-Host "Step 1: Import test_helpers.ps1"
-Write-Host "  Importing from: $PSScriptRoot\test_helpers.ps1"
-. "$PSScriptRoot\test_helpers.ps1"
+Write-Host "Step 1: Import TestLib.ps1"
+Write-Host "  Importing from: $PSScriptRoot\TestLib.ps1"
+. "$PSScriptRoot\TestLib.ps1"
 Write-Host "  [OK] Import successful"
 Write-Host ""
 
