@@ -74,7 +74,8 @@ echo Stdout File: %STDOUT_FILE%
 echo Stderr File: %STDERR_FILE%
 echo ============================================================================
 echo.
-echo Press Ctrl+C to stop the job and exit gracefully
+echo Note: To stop a running job, press Ctrl+C. The job will be terminated
+echo       and you can check the status files in the Internals Directory.
 echo.
 echo ============================================================================
 echo LAUNCHING JOB...
@@ -87,12 +88,18 @@ REM and writes status to file on completion
 
 REM Note: In the PowerShell command below, $PID is PowerShell's automatic variable for
 REM the current process ID. We get its ParentProcessId to find the cmd.exe process.
-REM The escaping with ^^^$ ensures $PID is passed literally to PowerShell.
-start "%JOB_NAME%" /d "%COMMAND_DIR%" /min cmd.exe /c ^
-"echo RUNNING > %STATUS_FILE% && ^
-echo %JOB_UUID% >NUL && ^
-powershell -NoProfile -ExecutionPolicy Bypass -Command \"(Get-WmiObject Win32_Process -Filter \\"ProcessId=^^^$PID\\").ParentProcessId\" > %PID_FILE% && ^
-cmd /c \"%COMMAND%\" 2> %STDERR_FILE% > %STDOUT_FILE% && echo SUCCESS > %STATUS_FILE% || echo FAILURE > %STATUS_FILE%"
+REM The quoting is complex due to nested cmd.exe and powershell invocations.
+
+REM Write the job launch script to a temporary file to avoid escaping issues
+set "LAUNCH_SCRIPT=%INTERNALS_DIR%\launch_job.cmd"
+echo @echo off > "%LAUNCH_SCRIPT%"
+echo echo RUNNING ^> "%STATUS_FILE%" >> "%LAUNCH_SCRIPT%"
+echo echo %JOB_UUID% ^>NUL >> "%LAUNCH_SCRIPT%"
+echo powershell -NoProfile -ExecutionPolicy Bypass -Command "(Get-CimInstance Win32_Process -Filter 'ProcessId=$PID').ParentProcessId" ^> "%PID_FILE%" >> "%LAUNCH_SCRIPT%"
+echo %COMMAND% 2^> "%STDERR_FILE%" ^> "%STDOUT_FILE%" >> "%LAUNCH_SCRIPT%"
+echo if errorlevel 1 (echo FAILURE ^> "%STATUS_FILE%") else (echo SUCCESS ^> "%STATUS_FILE%") >> "%LAUNCH_SCRIPT%"
+
+start "%JOB_NAME%" /d "%COMMAND_DIR%" /min cmd.exe /c "%LAUNCH_SCRIPT%"
 
 REM Give it a moment to start
 timeout /t 1 /nobreak >nul 2>&1
@@ -137,8 +144,10 @@ if "%CURRENT_STATUS%"=="SUCCESS" goto :JOB_COMPLETE
 if "%CURRENT_STATUS%"=="FAILURE" goto :JOB_COMPLETE
 
 REM Wait 2 seconds before next poll
+REM Note: timeout may return errorlevel 1 on Ctrl+C, but we only handle
+REM Ctrl+C manually if job is still running. If status is already FAILURE,
+REM we should go to JOB_COMPLETE instead.
 timeout /t 2 /nobreak >nul 2>&1
-if errorlevel 1 goto :CTRL_C_HANDLER
 
 goto :POLL_LOOP
 
@@ -228,6 +237,9 @@ echo.
 echo ============================================================================
 echo Session files located in: %INTERNALS_DIR%
 echo ============================================================================
+
+REM Clean up the temporary launch script
+if exist "%LAUNCH_SCRIPT%" del "%LAUNCH_SCRIPT%"
 
 endlocal
 exit /b 0
