@@ -1,4 +1,4 @@
-# verify_test_helpers.ps1
+# TestLibVerify.ps1
 # Diagnostic script to verify TestLib.ps1 functions are working correctly
 # Run this to debug issues with the test infrastructure
 
