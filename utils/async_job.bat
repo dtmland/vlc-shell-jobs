@@ -94,10 +94,16 @@ REM The quoting is complex due to nested cmd.exe and powershell invocations.
 
 REM Write the job launch script to a temporary file to avoid escaping issues
 set "LAUNCH_SCRIPT=%INTERNALS_DIR%\launch_job.cmd"
+set "PID_SCRIPT=%INTERNALS_DIR%\get_pid.ps1"
+
+REM Create PowerShell script to get parent PID (avoids escaping issues)
+echo (Get-CimInstance Win32_Process -Filter "ProcessId=$($PID)").ParentProcessId > "%PID_SCRIPT%"
+
+REM Create the launch script
 echo @echo off > "%LAUNCH_SCRIPT%"
 echo echo RUNNING^>"%STATUS_FILE%" >> "%LAUNCH_SCRIPT%"
 echo echo %JOB_UUID% ^>NUL >> "%LAUNCH_SCRIPT%"
-echo powershell -NoProfile -ExecutionPolicy Bypass -Command "(Get-CimInstance Win32_Process -Filter 'ProcessId=$PID').ParentProcessId" ^>"%PID_FILE%" 2^>^&1 >> "%LAUNCH_SCRIPT%"
+echo powershell -NoProfile -ExecutionPolicy Bypass -File "%PID_SCRIPT%" ^>"%PID_FILE%" 2^>^&1 >> "%LAUNCH_SCRIPT%"
 echo %COMMAND% 2^>"%STDERR_FILE%" ^>"%STDOUT_FILE%" >> "%LAUNCH_SCRIPT%"
 echo if errorlevel 1 (echo FAILURE^>"%STATUS_FILE%") else (echo SUCCESS^>"%STATUS_FILE%") >> "%LAUNCH_SCRIPT%"
 
@@ -195,8 +201,9 @@ echo ===========================================================================
 echo Session files located in: %INTERNALS_DIR%
 echo ============================================================================
 
-REM Clean up the temporary launch script
+REM Clean up the temporary scripts
 if exist "%LAUNCH_SCRIPT%" del "%LAUNCH_SCRIPT%"
+if exist "%PID_SCRIPT%" del "%PID_SCRIPT%"
 
 endlocal
 exit /b 0
