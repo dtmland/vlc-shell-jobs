@@ -95,11 +95,11 @@ REM The quoting is complex due to nested cmd.exe and powershell invocations.
 REM Write the job launch script to a temporary file to avoid escaping issues
 set "LAUNCH_SCRIPT=%INTERNALS_DIR%\launch_job.cmd"
 echo @echo off > "%LAUNCH_SCRIPT%"
-echo echo RUNNING ^> "%STATUS_FILE%" >> "%LAUNCH_SCRIPT%"
+echo echo RUNNING^>"%STATUS_FILE%" >> "%LAUNCH_SCRIPT%"
 echo echo %JOB_UUID% ^>NUL >> "%LAUNCH_SCRIPT%"
-echo powershell -NoProfile -ExecutionPolicy Bypass -Command "(Get-CimInstance Win32_Process -Filter 'ProcessId=$PID').ParentProcessId" ^> "%PID_FILE%" >> "%LAUNCH_SCRIPT%"
-echo %COMMAND% 2^> "%STDERR_FILE%" ^> "%STDOUT_FILE%" >> "%LAUNCH_SCRIPT%"
-echo if errorlevel 1 (echo FAILURE ^> "%STATUS_FILE%") else (echo SUCCESS ^> "%STATUS_FILE%") >> "%LAUNCH_SCRIPT%"
+echo powershell -NoProfile -ExecutionPolicy Bypass -Command "(Get-CimInstance Win32_Process -Filter 'ProcessId=$PID').ParentProcessId" ^>"%PID_FILE%" 2^>^&1 >> "%LAUNCH_SCRIPT%"
+echo %COMMAND% 2^>"%STDERR_FILE%" ^>"%STDOUT_FILE%" >> "%LAUNCH_SCRIPT%"
+echo if errorlevel 1 (echo FAILURE^>"%STATUS_FILE%") else (echo SUCCESS^>"%STATUS_FILE%") >> "%LAUNCH_SCRIPT%"
 
 start "%JOB_NAME%" /d "%COMMAND_DIR%" /min cmd.exe /c "%LAUNCH_SCRIPT%"
 
@@ -116,7 +116,7 @@ set "POLL_COUNT=0"
 :POLL_LOOP
 set /a POLL_COUNT+=1
 
-REM Read current status (tokens=* trims leading whitespace, and we strip trailing via direct assignment)
+REM Read current status from file
 set "CURRENT_STATUS="
 if exist "%STATUS_FILE%" (
     for /f "usebackq tokens=*" %%s in ("%STATUS_FILE%") do set "CURRENT_STATUS=%%s"
@@ -124,7 +124,7 @@ if exist "%STATUS_FILE%" (
 
 REM Display status header
 echo ============================================================================
-echo [Poll #%POLL_COUNT%] Status: %CURRENT_STATUS%
+echo [Poll #%POLL_COUNT%] Status: [%CURRENT_STATUS%]
 echo ============================================================================
 
 REM Display current stdout
@@ -141,9 +141,13 @@ if exist "%STDERR_FILE%" (
 )
 echo.
 
-REM Check if job is finished
-if "%CURRENT_STATUS%"=="SUCCESS" goto :JOB_COMPLETE
-if "%CURRENT_STATUS%"=="FAILURE" goto :JOB_COMPLETE
+REM Check if job is finished using findstr for more robust matching
+if exist "%STATUS_FILE%" (
+    findstr /C:"SUCCESS" "%STATUS_FILE%" >nul 2>&1
+    if not errorlevel 1 goto :JOB_COMPLETE
+    findstr /C:"FAILURE" "%STATUS_FILE%" >nul 2>&1
+    if not errorlevel 1 goto :JOB_COMPLETE
+)
 
 REM Wait 2 seconds before next poll
 timeout /t 2 /nobreak >nul 2>&1

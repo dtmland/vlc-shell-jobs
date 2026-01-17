@@ -68,9 +68,14 @@ if "%CURRENT_STATUS%"=="FAILURE" (
 REM Read PID from file
 set "JOB_PID="
 if exist "%PID_FILE%" (
+    echo PID file found: %PID_FILE%
+    echo PID file contents:
+    type "%PID_FILE%"
+    echo.
     for /f "usebackq tokens=*" %%p in ("%PID_FILE%") do set "JOB_PID=%%p"
+) else (
+    echo PID file not found: %PID_FILE%
 )
-for /f "tokens=* delims= " %%a in ("%JOB_PID%") do set "JOB_PID=%%a"
 
 if "%JOB_PID%"=="" (
     echo ERROR: Could not find PID file or PID is empty
