@@ -88,11 +88,21 @@ echo.
 echo Attempting to stop the job and its child processes...
 echo.
 
-REM Get the directory where this script is located
+REM Get the directory where this script is located (to find create_stop_job.ps1)
 set "SCRIPT_DIR=%~dp0"
 
-REM Execute the PowerShell kill tree script
-powershell -NoProfile -ExecutionPolicy Bypass -File "%SCRIPT_DIR%kill_tree.ps1" -ProcessId %JOB_PID% -MatchString "%JOB_UUID%"
+REM Define path for the generated kill script
+set "KILL_BAT=%INTERNALS_DIR%\kill_tree_runner.bat"
+
+REM Call the PowerShell script to generate the kill tree batch file
+REM This avoids complex bat-to-bat escaping issues
+powershell -NoProfile -ExecutionPolicy Bypass -File "%SCRIPT_DIR%create_stop_job.ps1" -JobPID %JOB_PID% -JobUUID "%JOB_UUID%" -OutputBatFile "%KILL_BAT%"
+
+REM Execute the generated kill script
+call "%KILL_BAT%"
+
+REM Clean up the temporary script
+if exist "%KILL_BAT%" del "%KILL_BAT%"
 
 echo.
 echo ============================================================================

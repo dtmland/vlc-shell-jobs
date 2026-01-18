@@ -6,7 +6,28 @@ This directory contains Windows batch file utilities that replicate the core fun
 2. **Understanding the implementation** - See the exact commands without Lua escaping
 3. **Troubleshooting** - Isolate issues with command execution
 
+## Architecture
+
+The utilities use a two-stage architecture to avoid complex batch escaping issues:
+
+1. **Wrapper batch file** (e.g., `block_command.bat`) - Lightweight wrapper that:
+   - Parses arguments
+   - Generates a UUID for temp files
+   - Calls the PowerShell generator script
+
+2. **PowerShell generator** (e.g., `create_block_command.ps1`) - Generates the final `.bat` file:
+   - Writing batch from PowerShell avoids complex escaping
+   - The generated `.bat` file matches the lua `one_liner` pattern exactly
+   - The generated file can be manually run for troubleshooting
+
+3. **Generated runner batch** (e.g., `block_runner.bat`) - The actual execution script:
+   - Contains the PowerShell command in the exact format from `executor.lua`
+   - Can be inspected and run manually for debugging
+   - Cleaned up after execution (but can be preserved by commenting out cleanup)
+
 ## Files
+
+### Main Utilities
 
 ### `block_command.bat`
 
@@ -39,6 +60,7 @@ block_command.bat "ping -n 3 localhost && echo done"
 The script will display:
 - The command being executed
 - Working directory
+- Runner script path (temporary bat file)
 - Result status (SUCCESS/FAILURE)
 - Exit code
 - Complete STDOUT content
@@ -80,6 +102,7 @@ async_job.bat "ping -n 30 localhost && ping -n 30 localhost"
 - Launches command in a minimized window
 - Generates unique UUID for job tracking
 - Creates status files in `%APPDATA%\jobrunner\<uuid>\`
+- Writes a `launch_job.bat` file for the background job execution (allows manual inspection)
 - Polls every 2 seconds and displays current stdout/stderr
 - Automatically exits when job completes (SUCCESS or FAILURE)
 - Displays final status on completion
@@ -116,9 +139,11 @@ stop_job.bat "78f734c4-496c-40d0-83f4-127d43e97195"
 
 **Features:**
 - Finds the job by UUID in `%APPDATA%\jobrunner\<uuid>\`
-- Uses process tree walking to stop all child processes (via `kill_tree.ps1`)
+- Generates a `kill_tree_runner.bat` file (matching the lua one_liner pattern)
+- Uses process tree walking to stop all child processes
 - Updates job status to STOPPED
 - Shows final stdout/stderr at time of stop
+- Cleans up the generated script after execution
 
 **How to use:**
 1. Run `async_job.bat` and note the Job UUID displayed
@@ -127,9 +152,52 @@ stop_job.bat "78f734c4-496c-40d0-83f4-127d43e97195"
 
 ---
 
+### PowerShell Generators
+
+### `create_block_command.ps1`
+
+PowerShell script that generates the `block_runner.bat` file. Called by `block_command.bat`.
+
+**Parameters:**
+- `-Command` - The command to execute
+- `-CommandDir` - Working directory
+- `-OutputBatFile` - Path to write the generated .bat file
+- `-SuccessDesignator` - Success marker text
+- `-FailureDesignator` - Failure marker text
+
+---
+
+### `create_async_job.ps1`
+
+PowerShell script that generates the `launch_job.bat` file. Called by `async_job.bat`.
+
+**Parameters:**
+- `-Command` - The command to execute
+- `-JobUUID` - The job's unique identifier
+- `-StatusFile` - Path to status file
+- `-PidFile` - Path to PID file
+- `-StdoutFile` - Path to stdout file
+- `-StderrFile` - Path to stderr file
+- `-OutputBatFile` - Path to write the generated .bat file
+
+---
+
+### `create_stop_job.ps1`
+
+PowerShell script that generates the `kill_tree_runner.bat` file. Called by `stop_job.bat`.
+
+**Parameters:**
+- `-JobPID` - The process ID to kill
+- `-JobUUID` - The job's unique identifier (for matching)
+- `-OutputBatFile` - Path to write the generated .bat file
+
+---
+
+### Helper Scripts
+
 ### `kill_tree.ps1`
 
-PowerShell script that walks a process tree and kills processes matching a UUID.
+Standalone PowerShell script that walks a process tree and kills processes matching a UUID.
 
 **Based on:** The Kill-Tree function from `executor.stop_job()` in `executor.lua`
 
@@ -138,7 +206,7 @@ PowerShell script that walks a process tree and kills processes matching a UUID.
 powershell -File kill_tree.ps1 -ProcessId <pid> -MatchString "<uuid>"
 ```
 
-**Note:** This script is called automatically by `stop_job.bat`. You don't normally need to run it directly.
+**Note:** This is a standalone helper script for manual use. The `stop_job.bat` utility uses `create_stop_job.ps1` to generate a batch file with the same logic inline.
 
 ---
 
@@ -200,9 +268,19 @@ The Lua code defines a Kill-Tree PowerShell function that:
 
 ## Troubleshooting
 
+### Inspecting Generated Files
+
+To inspect the generated batch files before they're cleaned up:
+1. Comment out the cleanup lines at the end of the wrapper script
+2. Run the command
+3. Navigate to `%APPDATA%\jobrunner\<uuid>\` to find the generated files
+4. Run the generated `.bat` file manually to test
+
+### Common Issues
+
 1. **PowerShell Execution Policy**: The scripts use `-ExecutionPolicy Bypass` to avoid policy issues
-2. **Hidden Windows**: Use `-WindowStyle Hidden` to suppress PowerShell window popup
-3. **Escaping**: In batch files, `^` is used to escape special characters like `&` and `|`
+2. **Hidden Windows**: The generated scripts use `-WindowStyle Hidden` to suppress PowerShell window popup
+3. **Escaping**: The PowerShell generators handle all escaping, so the generated batch files have correct syntax
 4. **PID Recording**: The async job uses WMI to get the parent process ID for proper tree killing
 
 ---
