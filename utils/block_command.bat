@@ -36,11 +36,22 @@ if "%COMMAND_DIR%"=="" (
     set "COMMAND_DIR=%USERPROFILE%"
 )
 
+REM Generate a UUID for this run (for unique temp directory)
+for /f "delims=" %%a in ('powershell -NoProfile -Command "[guid]::NewGuid().ToString()"') do set "RUN_UUID=%%a"
+
+REM Create internals directory for this run
+set "INTERNALS_DIR=%APPDATA%\jobrunner\block_%RUN_UUID%"
+mkdir "%INTERNALS_DIR%" 2>nul
+
+REM Define file paths
+set "RUNNER_SCRIPT=%INTERNALS_DIR%\block_runner.bat"
+
 echo ============================================================================
 echo BLOCK COMMAND EXECUTOR
 echo ============================================================================
 echo Command: %COMMAND%
 echo Working Directory: %COMMAND_DIR%
+echo Runner Script: %RUNNER_SCRIPT%
 echo ============================================================================
 echo.
 
@@ -48,43 +59,18 @@ REM Define exit code designators (matching executor.lua)
 set "SUCCESS_DESIGNATOR=EXITCODE:SUCCESS"
 set "FAILURE_DESIGNATOR=EXITCODE:FAILURE"
 
-REM Build and execute the PowerShell command
+REM Build and write the runner bat file
 REM This mirrors the logic in executor.blocking_command() from executor.lua
-powershell -NoProfile -ExecutionPolicy Bypass -Command ^
-"$psi = New-Object System.Diagnostics.ProcessStartInfo; ^
-$psi.FileName = 'cmd.exe'; ^
-$psi.Arguments = '/c cd %COMMAND_DIR% ^&^& %COMMAND% ^&^& echo %SUCCESS_DESIGNATOR% ^|^| echo %FAILURE_DESIGNATOR%'; ^
-$psi.RedirectStandardOutput = $true; ^
-$psi.RedirectStandardError = $true; ^
-$psi.UseShellExecute = $false; ^
-$psi.CreateNoWindow = $true; ^
-$process = [System.Diagnostics.Process]::Start($psi); ^
-$process.WaitForExit(); ^
-$stdout = $process.StandardOutput.ReadToEnd(); ^
-$stderr = $process.StandardError.ReadToEnd(); ^
-$exitCode = $process.ExitCode; ^
-Write-Host ''; ^
-Write-Host '============================================================================'; ^
-Write-Host 'RESULT'; ^
-Write-Host '============================================================================'; ^
-if ($stdout -match '%SUCCESS_DESIGNATOR%') { ^
-    Write-Host 'Status: SUCCESS'; ^
-} else { ^
-    Write-Host 'Status: FAILURE'; ^
-} ^
-Write-Host 'Exit Code:' $exitCode; ^
-Write-Host ''; ^
-Write-Host '============================================================================'; ^
-Write-Host 'STDOUT'; ^
-Write-Host '============================================================================'; ^
-$stdoutClean = $stdout -replace '%SUCCESS_DESIGNATOR%', '' -replace '%FAILURE_DESIGNATOR%', ''; ^
-Write-Host $stdoutClean; ^
-Write-Host ''; ^
-Write-Host '============================================================================'; ^
-Write-Host 'STDERR'; ^
-Write-Host '============================================================================'; ^
-Write-Host $stderr; ^
-Write-Host ''"
+REM Writing to a bat file allows manual inspection and troubleshooting
+echo @echo off>"%RUNNER_SCRIPT%"
+echo powershell -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -Command "$psi = New-Object System.Diagnostics.ProcessStartInfo; $psi.FileName = 'cmd.exe'; $psi.Arguments = '/c cd %COMMAND_DIR% ^^&^^& %COMMAND% ^^&^^& echo %SUCCESS_DESIGNATOR% ^^|^^| echo %FAILURE_DESIGNATOR%'; $psi.RedirectStandardOutput = $true; $psi.RedirectStandardError = $true; $psi.UseShellExecute = $false; $psi.CreateNoWindow = $true; $process = [System.Diagnostics.Process]::Start($psi); $process.WaitForExit(); $stdout = $process.StandardOutput.ReadToEnd(); $stderr = $process.StandardError.ReadToEnd(); $exitCode = $process.ExitCode; Write-Host ''; Write-Host '============================================================================'; Write-Host 'RESULT'; Write-Host '============================================================================'; if ($stdout -match '%SUCCESS_DESIGNATOR%') { Write-Host 'Status: SUCCESS'; } else { Write-Host 'Status: FAILURE'; } Write-Host 'Exit Code:' $exitCode; Write-Host ''; Write-Host '============================================================================'; Write-Host 'STDOUT'; Write-Host '============================================================================'; $stdoutClean = $stdout -replace '%SUCCESS_DESIGNATOR%', '' -replace '%FAILURE_DESIGNATOR%', ''; Write-Host $stdoutClean; Write-Host ''; Write-Host '============================================================================'; Write-Host 'STDERR'; Write-Host '============================================================================'; Write-Host $stderr; Write-Host ''">>"%RUNNER_SCRIPT%"
+
+REM Execute the runner script
+call "%RUNNER_SCRIPT%"
+
+REM Clean up the temporary script
+if exist "%RUNNER_SCRIPT%" del "%RUNNER_SCRIPT%"
+if exist "%INTERNALS_DIR%" rmdir "%INTERNALS_DIR%" 2>nul
 
 echo.
 echo ============================================================================

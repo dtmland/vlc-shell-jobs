@@ -93,7 +93,7 @@ REM the current process ID. We get its ParentProcessId to find the cmd.exe proce
 REM The quoting is complex due to nested cmd.exe and powershell invocations.
 
 REM Write the job launch script to a temporary file to avoid escaping issues
-set "LAUNCH_SCRIPT=%INTERNALS_DIR%\launch_job.cmd"
+set "LAUNCH_SCRIPT=%INTERNALS_DIR%\launch_job.bat"
 set "PID_SCRIPT=%INTERNALS_DIR%\get_pid.ps1"
 
 REM Create PowerShell script to get parent PID (avoids escaping issues)

@@ -39,10 +39,14 @@ block_command.bat "ping -n 3 localhost && echo done"
 The script will display:
 - The command being executed
 - Working directory
+- Runner script path (temporary bat file)
 - Result status (SUCCESS/FAILURE)
 - Exit code
 - Complete STDOUT content
 - Complete STDERR content
+
+**Implementation Note:**
+This script writes the PowerShell command to a temporary `block_runner.bat` file in `%APPDATA%\jobrunner\block_<uuid>\` before executing it. This approach mirrors the lua one_liner pattern and allows for easier manual inspection and troubleshooting of the generated command. The temporary files are cleaned up after execution.
 
 ---
 
@@ -80,6 +84,7 @@ async_job.bat "ping -n 30 localhost && ping -n 30 localhost"
 - Launches command in a minimized window
 - Generates unique UUID for job tracking
 - Creates status files in `%APPDATA%\jobrunner\<uuid>\`
+- Writes a `launch_job.bat` file for the background job execution (allows manual inspection)
 - Polls every 2 seconds and displays current stdout/stderr
 - Automatically exits when job completes (SUCCESS or FAILURE)
 - Displays final status on completion
@@ -116,9 +121,11 @@ stop_job.bat "78f734c4-496c-40d0-83f4-127d43e97195"
 
 **Features:**
 - Finds the job by UUID in `%APPDATA%\jobrunner\<uuid>\`
-- Uses process tree walking to stop all child processes (via `kill_tree.ps1`)
+- Writes a temporary `kill_tree_runner.bat` file with inline PowerShell Kill-Tree logic (matching the lua one_liner)
+- Uses process tree walking to stop all child processes
 - Updates job status to STOPPED
 - Shows final stdout/stderr at time of stop
+- Cleans up the temporary script after execution
 
 **How to use:**
 1. Run `async_job.bat` and note the Job UUID displayed
@@ -138,7 +145,7 @@ PowerShell script that walks a process tree and kills processes matching a UUID.
 powershell -File kill_tree.ps1 -ProcessId <pid> -MatchString "<uuid>"
 ```
 
-**Note:** This script is called automatically by `stop_job.bat`. You don't normally need to run it directly.
+**Note:** This is a standalone helper script. `stop_job.bat` now uses inline PowerShell (written to a temporary bat file) instead of calling this script directly, matching the lua one_liner pattern for easier troubleshooting.
 
 ---
 

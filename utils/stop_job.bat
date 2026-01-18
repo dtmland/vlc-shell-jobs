@@ -88,11 +88,20 @@ echo.
 echo Attempting to stop the job and its child processes...
 echo.
 
-REM Get the directory where this script is located
-set "SCRIPT_DIR=%~dp0"
+REM Create a temporary bat file for the kill tree command
+REM This mirrors the one_liner pattern in executor.stop_job() from executor.lua
+set "KILL_SCRIPT=%INTERNALS_DIR%\kill_tree_runner.bat"
 
-REM Execute the PowerShell kill tree script
-powershell -NoProfile -ExecutionPolicy Bypass -File "%SCRIPT_DIR%kill_tree.ps1" -ProcessId %JOB_PID% -MatchString "%JOB_UUID%"
+REM Build the kill tree PowerShell command as a bat file
+REM This matches the inline Kill-Tree function from executor.lua
+echo @echo off>"%KILL_SCRIPT%"
+echo powershell -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -Command "function Kill-Tree { param([int] $ppid, [string] $matchString, [bool] $matchFound = $false); $process = Get-CimInstance Win32_Process ^^| Where-Object { $_.ProcessId -eq $ppid }; if (-not $process) { Write-Host 'Process with PID' $ppid 'not found.'; return }; if (-not $matchFound -and $process.CommandLine -like '*'+$matchString+'*') { Write-Host 'Match found for process PID' $ppid 'and' $matchString; $matchFound = $true } elseif (-not $matchFound) { Write-Host 'No match for process PID' $ppid 'and' $matchString '. Skipping.' } else { Write-Host 'Killing process PID' $ppid; if ($matchFound) { Stop-Process -Id $ppid -Force -ErrorAction SilentlyContinue } }; Get-CimInstance Win32_Process ^^| Where-Object { $_.ParentProcessId -eq $ppid } ^^| ForEach-Object { Kill-Tree -ppid $_.ProcessId -matchString $matchString -matchFound $matchFound } }; Kill-Tree -ppid %JOB_PID% -matchString '%JOB_UUID%'">>"%KILL_SCRIPT%"
+
+REM Execute the kill script
+call "%KILL_SCRIPT%"
+
+REM Clean up the temporary script
+if exist "%KILL_SCRIPT%" del "%KILL_SCRIPT%"
 
 echo.
 echo ============================================================================
