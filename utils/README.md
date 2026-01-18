@@ -46,7 +46,7 @@ The script will display:
 - Complete STDERR content
 
 **Implementation Note:**
-This script writes the PowerShell command to a temporary `block_runner.bat` file in `%APPDATA%\jobrunner\block_<uuid>\` before executing it. This approach mirrors the lua one_liner pattern and allows for easier manual inspection and troubleshooting of the generated command. The temporary files are cleaned up after execution.
+This script writes the PowerShell script to a temporary `block_runner.ps1` file and a batch wrapper `block_runner.bat` in `%APPDATA%\jobrunner\block_<uuid>\` before executing. This approach mirrors the lua one_liner pattern and allows for easier manual inspection and troubleshooting of the generated command. The temporary files are cleaned up after execution.
 
 ---
 
@@ -121,11 +121,11 @@ stop_job.bat "78f734c4-496c-40d0-83f4-127d43e97195"
 
 **Features:**
 - Finds the job by UUID in `%APPDATA%\jobrunner\<uuid>\`
-- Writes a temporary `kill_tree_runner.bat` file with inline PowerShell Kill-Tree logic (matching the lua one_liner)
+- Writes a temporary `kill_tree_runner.ps1` PowerShell script and `kill_tree_runner.bat` wrapper (matching the lua one_liner pattern)
 - Uses process tree walking to stop all child processes
 - Updates job status to STOPPED
 - Shows final stdout/stderr at time of stop
-- Cleans up the temporary script after execution
+- Cleans up the temporary scripts after execution
 
 **How to use:**
 1. Run `async_job.bat` and note the Job UUID displayed

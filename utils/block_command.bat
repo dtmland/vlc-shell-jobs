@@ -63,23 +63,65 @@ REM Build and write the runner bat file
 REM This mirrors the logic in executor.blocking_command() from executor.lua
 REM Writing to a bat file allows manual inspection and troubleshooting
 REM
-REM The PowerShell command structure (written as one line to match the lua one_liner pattern):
+REM The PowerShell command structure:
 REM   1. Create ProcessStartInfo to launch cmd.exe with the command
 REM   2. Configure output redirection and hidden window
 REM   3. Start process and wait for completion
 REM   4. Read stdout/stderr and display formatted results
 REM   5. Check for SUCCESS/FAILURE designators to determine status
 REM
-REM Note: The ^^&^^& and ^^|^^| escaping produces ^&^& and ^|^| in the output file,
-REM       which cmd.exe interprets correctly when running the generated bat file.
-echo @echo off>"%RUNNER_SCRIPT%"
-echo powershell -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -Command "$psi = New-Object System.Diagnostics.ProcessStartInfo; $psi.FileName = 'cmd.exe'; $psi.Arguments = '/c cd %COMMAND_DIR% ^^&^^& %COMMAND% ^^&^^& echo %SUCCESS_DESIGNATOR% ^^|^^| echo %FAILURE_DESIGNATOR%'; $psi.RedirectStandardOutput = $true; $psi.RedirectStandardError = $true; $psi.UseShellExecute = $false; $psi.CreateNoWindow = $true; $process = [System.Diagnostics.Process]::Start($psi); $process.WaitForExit(); $stdout = $process.StandardOutput.ReadToEnd(); $stderr = $process.StandardError.ReadToEnd(); $exitCode = $process.ExitCode; Write-Host ''; Write-Host '============================================================================'; Write-Host 'RESULT'; Write-Host '============================================================================'; if ($stdout -match '%SUCCESS_DESIGNATOR%') { Write-Host 'Status: SUCCESS'; } else { Write-Host 'Status: FAILURE'; } Write-Host 'Exit Code:' $exitCode; Write-Host ''; Write-Host '============================================================================'; Write-Host 'STDOUT'; Write-Host '============================================================================'; $stdoutClean = $stdout -replace '%SUCCESS_DESIGNATOR%', '' -replace '%FAILURE_DESIGNATOR%', ''; Write-Host $stdoutClean; Write-Host ''; Write-Host '============================================================================'; Write-Host 'STDERR'; Write-Host '============================================================================'; Write-Host $stderr; Write-Host ''">>"%RUNNER_SCRIPT%"
+REM We write the PowerShell script to a .ps1 file for cleaner escaping,
+REM then create a .bat wrapper that calls it.
+
+set "PS_SCRIPT=%INTERNALS_DIR%\block_runner.ps1"
+
+REM Write the PowerShell script (no batch escaping issues)
+REM Note: ^^ becomes ^ after echo processing, so ^^&^^& writes ^&^& to the file
+>"%PS_SCRIPT%" (
+echo $psi = New-Object System.Diagnostics.ProcessStartInfo
+echo $psi.FileName = 'cmd.exe'
+echo $psi.Arguments = '/c cd %COMMAND_DIR% ^^&^^& %COMMAND% ^^&^^& echo %SUCCESS_DESIGNATOR% ^^|^^| echo %FAILURE_DESIGNATOR%'
+echo $psi.RedirectStandardOutput = $true
+echo $psi.RedirectStandardError = $true
+echo $psi.UseShellExecute = $false
+echo $psi.CreateNoWindow = $true
+echo $process = [System.Diagnostics.Process]::Start($psi^)
+echo $process.WaitForExit(^)
+echo $stdout = $process.StandardOutput.ReadToEnd(^)
+echo $stderr = $process.StandardError.ReadToEnd(^)
+echo $exitCode = $process.ExitCode
+echo Write-Host ''
+echo Write-Host '============================================================================'
+echo Write-Host 'RESULT'
+echo Write-Host '============================================================================'
+echo if ($stdout -match '%SUCCESS_DESIGNATOR%'^) { Write-Host 'Status: SUCCESS' } else { Write-Host 'Status: FAILURE' }
+echo Write-Host 'Exit Code:' $exitCode
+echo Write-Host ''
+echo Write-Host '============================================================================'
+echo Write-Host 'STDOUT'
+echo Write-Host '============================================================================'
+echo $stdoutClean = $stdout -replace '%SUCCESS_DESIGNATOR%', '' -replace '%FAILURE_DESIGNATOR%', ''
+echo Write-Host $stdoutClean
+echo Write-Host ''
+echo Write-Host '============================================================================'
+echo Write-Host 'STDERR'
+echo Write-Host '============================================================================'
+echo Write-Host $stderr
+echo Write-Host ''
+)
+
+REM Write the batch wrapper that calls the PowerShell script
+>"%RUNNER_SCRIPT%" (
+echo @echo off
+echo powershell -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File "%PS_SCRIPT%"
+)
 
 REM Execute the runner script
 call "%RUNNER_SCRIPT%"
 
-REM Clean up the temporary script
+REM Clean up the temporary scripts
 if exist "%RUNNER_SCRIPT%" del "%RUNNER_SCRIPT%"
+if exist "%PS_SCRIPT%" del "%PS_SCRIPT%"
 if exist "%INTERNALS_DIR%" rmdir "%INTERNALS_DIR%" 2>nul
 
 echo.
