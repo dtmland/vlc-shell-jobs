@@ -88,24 +88,15 @@ REM Build the background command (matching executor.run_cmd_job from executor.lu
 REM This uses start /min to launch in background, records PID, redirects output to files,
 REM and writes status to file on completion
 
-REM Note: In the PowerShell command below, $PID is PowerShell's automatic variable for
-REM the current process ID. We get its ParentProcessId to find the cmd.exe process.
-REM The quoting is complex due to nested cmd.exe and powershell invocations.
+REM Get the directory where this script is located (to find create_async_job.ps1)
+set "SCRIPT_DIR=%~dp0"
 
-REM Write the job launch script to a temporary file to avoid escaping issues
+REM Define path for the generated launch script
 set "LAUNCH_SCRIPT=%INTERNALS_DIR%\launch_job.bat"
-set "PID_SCRIPT=%INTERNALS_DIR%\get_pid.ps1"
 
-REM Create PowerShell script to get parent PID (avoids escaping issues)
-echo (Get-CimInstance Win32_Process -Filter "ProcessId=$($PID)").ParentProcessId > "%PID_SCRIPT%"
-
-REM Create the launch script
-echo @echo off>"%LAUNCH_SCRIPT%"
-echo echo RUNNING^>"%STATUS_FILE%">>"%LAUNCH_SCRIPT%"
-echo echo %JOB_UUID% ^>NUL>>"%LAUNCH_SCRIPT%"
-echo powershell -NoProfile -ExecutionPolicy Bypass -File "%PID_SCRIPT%" ^>"%PID_FILE%" 2^>^&1 >>"%LAUNCH_SCRIPT%"
-echo %COMMAND% 2^>"%STDERR_FILE%" ^>"%STDOUT_FILE%">>"%LAUNCH_SCRIPT%"
-echo if errorlevel 1 (echo FAILURE^>"%STATUS_FILE%") else (echo SUCCESS^>"%STATUS_FILE%")>>"%LAUNCH_SCRIPT%"
+REM Call the PowerShell script to generate the launch batch file
+REM This avoids complex bat-to-bat escaping issues
+powershell -NoProfile -ExecutionPolicy Bypass -File "%SCRIPT_DIR%create_async_job.ps1" -Command "%COMMAND%" -JobUUID "%JOB_UUID%" -StatusFile "%STATUS_FILE%" -PidFile "%PID_FILE%" -StdoutFile "%STDOUT_FILE%" -StderrFile "%STDERR_FILE%" -OutputBatFile "%LAUNCH_SCRIPT%"
 
 start "%JOB_NAME%" /d "%COMMAND_DIR%" /min cmd.exe /c "%LAUNCH_SCRIPT%"
 
@@ -203,9 +194,8 @@ echo ===========================================================================
 echo Session files located in: %INTERNALS_DIR%
 echo ============================================================================
 
-REM Clean up the temporary scripts
+REM Clean up the temporary launch script
 if exist "%LAUNCH_SCRIPT%" del "%LAUNCH_SCRIPT%"
-if exist "%PID_SCRIPT%" del "%PID_SCRIPT%"
 
 endlocal
 exit /b 0

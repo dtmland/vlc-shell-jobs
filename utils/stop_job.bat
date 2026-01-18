@@ -88,56 +88,21 @@ echo.
 echo Attempting to stop the job and its child processes...
 echo.
 
-REM Create temporary files for the kill tree command
-REM This mirrors the one_liner pattern in executor.stop_job() from executor.lua
+REM Get the directory where this script is located (to find create_stop_job.ps1)
+set "SCRIPT_DIR=%~dp0"
+
+REM Define path for the generated kill script
 set "KILL_BAT=%INTERNALS_DIR%\kill_tree_runner.bat"
-set "KILL_PS1=%INTERNALS_DIR%\kill_tree_runner.ps1"
 
-REM Build the kill tree PowerShell script
-REM This matches the inline Kill-Tree function from executor.lua
-REM
-REM The Kill-Tree function:
-REM   1. Define Kill-Tree function with parameters: ppid, matchString, matchFound
-REM   2. Get process by PID from Win32_Process
-REM   3. If process not found, log and return
-REM   4. If matchString found in CommandLine, set matchFound=true
-REM   5. If matchFound, kill the process; otherwise skip
-REM   6. Recursively call Kill-Tree for all child processes
-REM   7. Finally invoke Kill-Tree with the job PID and UUID
-REM
-REM Write the PowerShell script to a .ps1 file for cleaner syntax
-echo function Kill-Tree {>"%KILL_PS1%"
-echo     param([int] $ppid, [string] $matchString, [bool] $matchFound = $false)>>"%KILL_PS1%"
-echo     $process = Get-CimInstance Win32_Process ^| Where-Object { $_.ProcessId -eq $ppid }>>"%KILL_PS1%"
-echo     if (-not $process) {>>"%KILL_PS1%"
-echo         Write-Host "Process with PID" $ppid "not found.">>"%KILL_PS1%"
-echo         return>>"%KILL_PS1%"
-echo     }>>"%KILL_PS1%"
-echo     if (-not $matchFound -and $process.CommandLine -like "*$matchString*") {>>"%KILL_PS1%"
-echo         Write-Host "Match found for process PID" $ppid "and" $matchString>>"%KILL_PS1%"
-echo         $matchFound = $true>>"%KILL_PS1%"
-echo     } elseif (-not $matchFound) {>>"%KILL_PS1%"
-echo         Write-Host "No match for process PID" $ppid "and" $matchString ". Skipping.">>"%KILL_PS1%"
-echo     } else {>>"%KILL_PS1%"
-echo         Write-Host "Killing process PID" $ppid>>"%KILL_PS1%"
-echo         Stop-Process -Id $ppid -Force -ErrorAction SilentlyContinue>>"%KILL_PS1%"
-echo     }>>"%KILL_PS1%"
-echo     Get-CimInstance Win32_Process ^| Where-Object { $_.ParentProcessId -eq $ppid } ^| ForEach-Object {>>"%KILL_PS1%"
-echo         Kill-Tree -ppid $_.ProcessId -matchString $matchString -matchFound $matchFound>>"%KILL_PS1%"
-echo     }>>"%KILL_PS1%"
-echo }>>"%KILL_PS1%"
-echo Kill-Tree -ppid %JOB_PID% -matchString '%JOB_UUID%'>>"%KILL_PS1%"
+REM Call the PowerShell script to generate the kill tree batch file
+REM This avoids complex bat-to-bat escaping issues
+powershell -NoProfile -ExecutionPolicy Bypass -File "%SCRIPT_DIR%create_stop_job.ps1" -JobPID %JOB_PID% -JobUUID "%JOB_UUID%" -OutputBatFile "%KILL_BAT%"
 
-REM Write the batch wrapper for troubleshooting
-echo @echo off>"%KILL_BAT%"
-echo powershell -NoProfile -ExecutionPolicy Bypass -File "%KILL_PS1%">>"%KILL_BAT%"
+REM Execute the generated kill script
+call "%KILL_BAT%"
 
-REM Execute the PowerShell script directly
-powershell -NoProfile -ExecutionPolicy Bypass -File "%KILL_PS1%"
-
-REM Clean up the temporary scripts
+REM Clean up the temporary script
 if exist "%KILL_BAT%" del "%KILL_BAT%"
-if exist "%KILL_PS1%" del "%KILL_PS1%"
 
 echo.
 echo ============================================================================
