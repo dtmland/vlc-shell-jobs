@@ -42,14 +42,14 @@ if "%JOB_NAME%"=="" (
     set "JOB_NAME=AsyncJob"
 )
 
-REM Generate a UUID for this job (simulating generate_uuid from job_runner.lua)
+REM Generate a UUID for this job (simulating generate_uuid from shell_job.lua)
 for /f "delims=" %%a in ('powershell -NoProfile -Command "[guid]::NewGuid().ToString()"') do set "JOB_UUID=%%a"
 
 REM Create internals directory in APPDATA
 set "INTERNALS_DIR=%APPDATA%\jobrunner\%JOB_UUID%"
 mkdir "%INTERNALS_DIR%" 2>nul
 
-REM Define file paths (matching job_runner.lua)
+REM Define file paths (matching shell_job.lua)
 set "STATUS_FILE=%INTERNALS_DIR%\job_status.txt"
 set "UUID_FILE=%INTERNALS_DIR%\job_uuid.txt"
 set "PID_FILE=%INTERNALS_DIR%\job_pid.txt"
@@ -84,7 +84,7 @@ echo LAUNCHING JOB...
 echo ============================================================================
 echo.
 
-REM Build the background command (matching executor.run_cmd_job from executor.lua)
+REM Build the background command (matching executor.run_cmd_job from shell_execute.lua)
 REM This uses start /min to launch in background, records PID, redirects output to files,
 REM and writes status to file on completion
 

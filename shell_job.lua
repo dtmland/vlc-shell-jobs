@@ -3,6 +3,9 @@ local executor = require("extensions.shell_execute")
 
 math.randomseed(os.time())
 
+-- Default cleanup age in seconds (1 day = 86400 seconds)
+local DEFAULT_CLEANUP_AGE_SECONDS = 86400
+
 local function generate_random_number()
     return tostring(math.random(10000, 99999))
 end
@@ -15,6 +18,165 @@ local function generate_uuid()
         local v = (c == "x") and math.random(0, 15) or math.random(8, 11)
         return string.format("%x", v)
     end)
+end
+
+-- Function to get the base jobrunner directory (parent of individual job directories)
+local function get_jobrunner_base_directory()
+    if package.config:sub(1,1) == '\\' then
+        -- Windows
+        return os.getenv("APPDATA") .. "\\jobrunner"
+    else
+        -- UNIX
+        return os.getenv("HOME") .. "/.config/jobrunner"
+    end
+end
+
+-- Function to get path separator for current OS
+local function get_path_separator()
+    if package.config:sub(1,1) == '\\' then
+        return "\\"
+    else
+        return "/"
+    end
+end
+
+-- Function to check if a path is a directory using vlc.io.readdir
+local function is_directory(path)
+    -- vlc.io.readdir returns a table for directories, nil for files or non-existent paths
+    local entries = vlc.io.readdir(path)
+    return entries ~= nil
+end
+
+-- Function to get file/directory modification time
+-- Returns the modification time as a timestamp, or nil if unavailable
+local function get_modification_time(path)
+    local sep = get_path_separator()
+    local status_file = path .. sep .. "job_status.txt"
+    
+    -- Try to get the modification time by reading the status file
+    -- We use os.time() comparison based on when job was created
+    -- Since Lua doesn't have native stat(), we'll check if the job_uuid.txt exists
+    -- and parse its content to determine age
+    local uuid_file = path .. sep .. "job_uuid.txt"
+    local file = vlc.io.open(uuid_file, "r")
+    if not file then
+        return nil
+    end
+    file:close()
+    
+    -- Get file attributes using Lua's lfs-style approach via os command
+    -- For cross-platform compatibility, we'll use a different approach:
+    -- Check the stdout.txt file's last modified time via shell command
+    local mtime = nil
+    local stdout_file = path .. sep .. "stdout.txt"
+    
+    if package.config:sub(1,1) == '\\' then
+        -- Windows: Use PowerShell to get file modification time
+        local cmd = 'powershell -NoProfile -Command "(Get-Item -LiteralPath \'' .. stdout_file .. '\' -ErrorAction SilentlyContinue).LastWriteTime.ToFileTimeUtc()"'
+        local handle = io.popen(cmd, "r")
+        if handle then
+            local result = handle:read("*all"):gsub("%s+", "")
+            handle:close()
+            if result and result ~= "" then
+                -- Convert Windows file time to Unix timestamp
+                -- Windows file time is 100-nanosecond intervals since Jan 1, 1601
+                local filetime = tonumber(result)
+                if filetime then
+                    -- Convert to Unix timestamp (seconds since Jan 1, 1970)
+                    mtime = math.floor((filetime - 116444736000000000) / 10000000)
+                end
+            end
+        end
+    else
+        -- UNIX: Use stat command
+        local cmd = 'stat -c %Y "' .. stdout_file .. '" 2>/dev/null'
+        local handle = io.popen(cmd, "r")
+        if handle then
+            local result = handle:read("*all"):gsub("%s+", "")
+            handle:close()
+            mtime = tonumber(result)
+        end
+    end
+    
+    return mtime
+end
+
+-- Function to recursively remove a directory and its contents
+local function remove_directory_recursive(path)
+    local sep = get_path_separator()
+    local entries = vlc.io.readdir(path)
+    
+    if entries then
+        for _, entry in ipairs(entries) do
+            if entry ~= "." and entry ~= ".." then
+                local full_path = path .. sep .. entry
+                if is_directory(full_path) then
+                    remove_directory_recursive(full_path)
+                else
+                    os.remove(full_path)
+                end
+            end
+        end
+    end
+    
+    -- Remove the directory itself
+    if package.config:sub(1,1) == '\\' then
+        os.execute('rmdir "' .. path .. '" 2>nul')
+    else
+        os.execute('rmdir "' .. path .. '" 2>/dev/null')
+    end
+end
+
+-- Function to clean up old job directories
+-- max_age_seconds: Maximum age in seconds before a job directory is considered old (default: 1 day)
+-- Returns: number of directories cleaned up
+function job_runner.cleanup_old_jobs(max_age_seconds)
+    max_age_seconds = max_age_seconds or DEFAULT_CLEANUP_AGE_SECONDS
+    
+    local base_dir = get_jobrunner_base_directory()
+    local sep = get_path_separator()
+    local current_time = os.time()
+    local cleaned_count = 0
+    
+    -- Check if base directory exists
+    local entries = vlc.io.readdir(base_dir)
+    if not entries then
+        vlc.msg.dbg("Cleanup: Base jobrunner directory does not exist: " .. base_dir)
+        return 0
+    end
+    
+    vlc.msg.dbg("Cleanup: Checking for old jobs in: " .. base_dir)
+    
+    for _, entry in ipairs(entries) do
+        if entry ~= "." and entry ~= ".." then
+            local job_path = base_dir .. sep .. entry
+            
+            -- Only process directories
+            if is_directory(job_path) then
+                local mtime = get_modification_time(job_path)
+                
+                if mtime then
+                    local age_seconds = current_time - mtime
+                    
+                    if age_seconds > max_age_seconds then
+                        vlc.msg.dbg("Cleanup: Removing old job directory (age: " .. age_seconds .. "s): " .. entry)
+                        remove_directory_recursive(job_path)
+                        cleaned_count = cleaned_count + 1
+                    else
+                        vlc.msg.dbg("Cleanup: Job directory still recent (age: " .. age_seconds .. "s): " .. entry)
+                    end
+                else
+                    vlc.msg.dbg("Cleanup: Could not determine age for: " .. entry)
+                end
+            end
+        end
+    end
+    
+    if cleaned_count > 0 then
+        vlc.msg.info("Cleanup: Removed " .. cleaned_count .. " old job directories")
+    end
+    
+    return cleaned_count
 end
 
 function job_runner.job(command, command_directory)
@@ -33,7 +195,9 @@ function job_runner.new()
         job_pid_file = nil,
         job_uuid = nil,
         stdout_file = nil,
-        stderr_file = nil
+        stderr_file = nil,
+        status_check_counter = 0,
+        cleanup_age_seconds = DEFAULT_CLEANUP_AGE_SECONDS
     }
 
     local function msg_wrapper(level, message)
@@ -173,6 +337,14 @@ function job_runner.new()
     function self.set_internals_directory(path)
         self.internals_directory = path
         configure_paths()
+    end
+
+    function self.get_cleanup_age_seconds()
+        return self.cleanup_age_seconds
+    end
+
+    function self.set_cleanup_age_seconds(age_seconds)
+        self.cleanup_age_seconds = age_seconds or DEFAULT_CLEANUP_AGE_SECONDS
     end
 
     function self.get_stdout_file_path()
@@ -414,6 +586,15 @@ function job_runner.new()
 
     function self.status()
         local result = ""
+
+        -- Increment status check counter
+        self.status_check_counter = self.status_check_counter + 1
+        
+        -- Run cleanup every 3rd status check ("pumped")
+        if self.status_check_counter % 3 == 0 then
+            msg_wrapper("dbg", "Status check pumped (count: " .. self.status_check_counter .. "), running cleanup...")
+            job_runner.cleanup_old_jobs(self.cleanup_age_seconds)
+        end
 
         if no_job_found() then
             local msg = "Job not running. Please run job first..."

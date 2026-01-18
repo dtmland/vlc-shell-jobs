@@ -16,9 +16,9 @@ This project provides a VLC extension (`shell_jobs.lua`) that allows you to exec
 ### Core Lua Extension Files
 
 - **`shell_jobs.lua`** - Main VLC extension entry point with GUI
-- **`executor.lua`** - Core command execution logic (blocking and async commands)
-- **`job_runner.lua`** - Job management and status tracking
-- **`gui_manager.lua`** - GUI management for the VLC extension dialog
+- **`shell_execute.lua`** - Core command execution logic (blocking and async commands)
+- **`shell_job.lua`** - Job management and status tracking
+- **`dynamic_dialog.lua`** - GUI management for the VLC extension dialog
 
 ### Windows Utilities (`utils/`)
 
@@ -44,7 +44,7 @@ See [utils/tests/README.md](utils/tests/README.md) for detailed documentation.
 
 ## Installation
 
-1. Copy the Lua extension files (`shell_jobs.lua`, `executor.lua`, `job_runner.lua`, `gui_manager.lua`) to your VLC extensions directory:
+1. Copy the Lua extension files (`shell_jobs.lua`, `shell_execute.lua`, `shell_job.lua`, `dynamic_dialog.lua`) to your VLC extensions directory:
    - **Windows**: `%APPDATA%\vlc\lua\extensions\`
    - **macOS**: `~/Library/Application Support/org.videolan.vlc/lua/extensions/`
    - **Linux**: `~/.local/share/vlc/lua/extensions/`
@@ -83,7 +83,7 @@ utils\job_async_stop.bat "78f734c4-496c-40d0-83f4-127d43e97195"
 ## Platform Support
 
 - **VLC Extension**: Cross-platform (Windows, macOS, Linux)
-  - Currently, only Windows implementation is complete in `executor.lua`
+  - Currently, only Windows implementation is complete in `shell_execute.lua`
   - UNIX support marked as TODO
 - **Batch Utilities**: Windows only (requires PowerShell)
 
