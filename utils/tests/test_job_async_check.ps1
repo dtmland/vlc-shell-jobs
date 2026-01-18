@@ -1,5 +1,5 @@
-# test_check_job.ps1
-# Tests for check_job.bat - checking job status
+# test_job_async_check.ps1
+# Tests for job_async_check.bat - checking job status
 # These tests verify status checking functionality while jobs are running and after completion
 
 param(
@@ -20,14 +20,14 @@ if (-not $UtilsDir) {
     exit 1
 }
 
-$AsyncJobScript = Join-Path $UtilsDir "async_job.bat"
-$CheckJobScript = Join-Path $UtilsDir "check_job.bat"
-$StopJobScript = Join-Path $UtilsDir "stop_job.bat"
+$AsyncJobScript = Join-Path $UtilsDir "job_async_run.bat"
+$CheckJobScript = Join-Path $UtilsDir "job_async_check.bat"
+$StopJobScript = Join-Path $UtilsDir "job_async_stop.bat"
 
-Write-TestHeader "check_job.bat Tests"
+Write-TestHeader "job_async_check.bat Tests"
 
 # Pre-flight checks
-if (-not (Test-PreFlightChecks -ScriptPath $CheckJobScript -ScriptName "check_job.bat")) {
+if (-not (Test-PreFlightChecks -ScriptPath $CheckJobScript -ScriptName "job_async_check.bat")) {
     Write-Host "Pre-flight checks failed. Aborting tests."
     exit 1
 }

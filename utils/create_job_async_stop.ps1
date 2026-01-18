@@ -1,4 +1,4 @@
-# create_stop_job.ps1
+# create_job_async_stop.ps1
 # PowerShell script that generates the kill_tree_runner.bat file for troubleshooting
 # This avoids complex batch escaping by writing batch from PowerShell
 

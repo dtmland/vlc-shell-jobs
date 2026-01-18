@@ -1,5 +1,5 @@
-# test_stop_job.ps1
-# Tests for stop_job.bat - stopping async jobs
+# test_job_async_stop.ps1
+# Tests for job_async_stop.bat - stopping async jobs
 # These tests launch long-running background jobs and verify they can be stopped
 
 param(
@@ -20,14 +20,14 @@ if (-not $UtilsDir) {
     exit 1
 }
 
-$AsyncJobScript = Join-Path $UtilsDir "async_job.bat"
-$StopJobScript = Join-Path $UtilsDir "stop_job.bat"
-$CheckJobScript = Join-Path $UtilsDir "check_job.bat"
+$AsyncJobScript = Join-Path $UtilsDir "job_async_run.bat"
+$StopJobScript = Join-Path $UtilsDir "job_async_stop.bat"
+$CheckJobScript = Join-Path $UtilsDir "job_async_check.bat"
 
-Write-TestHeader "stop_job.bat Tests"
+Write-TestHeader "job_async_stop.bat Tests"
 
 # Pre-flight checks
-if (-not (Test-PreFlightChecks -ScriptPath $StopJobScript -ScriptName "stop_job.bat")) {
+if (-not (Test-PreFlightChecks -ScriptPath $StopJobScript -ScriptName "job_async_stop.bat")) {
     Write-Host "Pre-flight checks failed. Aborting tests."
     exit 1
 }

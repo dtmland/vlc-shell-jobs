@@ -1,4 +1,4 @@
-# create_async_job.ps1
+# create_job_async_run.ps1
 # PowerShell script that generates the launch_job.bat file for troubleshooting
 # This avoids complex batch escaping by writing batch from PowerShell
 

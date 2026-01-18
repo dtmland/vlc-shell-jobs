@@ -1,11 +1,11 @@
 @echo off
 REM ============================================================================
-REM async_job.bat
+REM job_async_run.bat
 REM 
 REM Purpose: Run a command asynchronously in the background, poll for status,
 REM          display ongoing output, and handle Ctrl+C for graceful shutdown.
 REM
-REM Usage: async_job.bat "command" ["working_directory"] ["job_name"]
+REM Usage: job_async_run.bat "command" ["working_directory"] ["job_name"]
 REM
 REM Arguments:
 REM   command           - The command to execute (required)
@@ -13,8 +13,8 @@ REM   working_directory - Directory to run command from (optional, defaults to %
 REM   job_name          - Display name for the job (optional, defaults to "AsyncJob")
 REM
 REM Example:
-REM   async_job.bat "ping -n 10 localhost"
-REM   async_job.bat "ping -n 10 localhost" "C:\Windows" "PingTest"
+REM   job_async_run.bat "ping -n 10 localhost"
+REM   job_async_run.bat "ping -n 10 localhost" "C:\Windows" "PingTest"
 REM
 REM This batch file replicates the async job runner from executor.lua and job_runner.lua
 REM ============================================================================
@@ -24,7 +24,7 @@ setlocal EnableDelayedExpansion
 REM Check for command argument
 if "%~1"=="" (
     echo ERROR: No command specified
-    echo Usage: async_job.bat "command" ["working_directory"] ["job_name"]
+    echo Usage: job_async_run.bat "command" ["working_directory"] ["job_name"]
     exit /b 1
 )
 
@@ -76,7 +76,7 @@ echo ===========================================================================
 echo.
 echo Note: Ctrl+C in batch will prompt "Terminate batch job (Y/N)?". If you
 echo       answer Y, the polling stops but the background job continues running.
-echo       To stop a running job, use: stop_job.bat "%JOB_UUID%"
+echo       To stop a running job, use: job_async_stop.bat "%JOB_UUID%"
 echo       Or run the stop command manually from the Internals Directory.
 echo.
 echo ============================================================================
@@ -88,7 +88,7 @@ REM Build the background command (matching executor.run_cmd_job from executor.lu
 REM This uses start /min to launch in background, records PID, redirects output to files,
 REM and writes status to file on completion
 
-REM Get the directory where this script is located (to find create_async_job.ps1)
+REM Get the directory where this script is located (to find create_job_async_run.ps1)
 set "SCRIPT_DIR=%~dp0"
 
 REM Define path for the generated launch script
@@ -96,7 +96,7 @@ set "LAUNCH_SCRIPT=%INTERNALS_DIR%\launch_job.bat"
 
 REM Call the PowerShell script to generate the launch batch file
 REM This avoids complex bat-to-bat escaping issues
-powershell -NoProfile -ExecutionPolicy Bypass -File "%SCRIPT_DIR%create_async_job.ps1" -Command "%COMMAND%" -JobUUID "%JOB_UUID%" -StatusFile "%STATUS_FILE%" -PidFile "%PID_FILE%" -StdoutFile "%STDOUT_FILE%" -StderrFile "%STDERR_FILE%" -OutputBatFile "%LAUNCH_SCRIPT%"
+powershell -NoProfile -ExecutionPolicy Bypass -File "%SCRIPT_DIR%create_job_async_run.ps1" -Command "%COMMAND%" -JobUUID "%JOB_UUID%" -StatusFile "%STATUS_FILE%" -PidFile "%PID_FILE%" -StdoutFile "%STDOUT_FILE%" -StderrFile "%STDERR_FILE%" -OutputBatFile "%LAUNCH_SCRIPT%"
 
 start "%JOB_NAME%" /d "%COMMAND_DIR%" /min cmd.exe /c "%LAUNCH_SCRIPT%"
 

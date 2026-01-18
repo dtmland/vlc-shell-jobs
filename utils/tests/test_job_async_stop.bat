@@ -1,30 +1,30 @@
 @echo off
 REM ============================================================================
-REM test_block_command.bat
+REM test_job_async_stop.bat
 REM
-REM Tests for block_command.bat - synchronous command execution
+REM Tests for job_async_stop.bat - stopping async jobs
 REM Runs PowerShell test script for comprehensive testing
 REM ============================================================================
 
 setlocal EnableDelayedExpansion
 
 echo ============================================================================
-echo TEST RUNNER: block_command.bat Tests
+echo TEST RUNNER: job_async_stop.bat Tests
 echo ============================================================================
 
 set "SCRIPT_DIR=%~dp0"
 set "UTILS_DIR=%SCRIPT_DIR%.."
 
 REM Run the PowerShell test script
-powershell -NoProfile -ExecutionPolicy Bypass -File "%SCRIPT_DIR%test_block_command.ps1" -UtilsDir "%UTILS_DIR%"
+powershell -NoProfile -ExecutionPolicy Bypass -File "%SCRIPT_DIR%test_job_async_stop.ps1" -UtilsDir "%UTILS_DIR%"
 set "TEST_RESULT=%ERRORLEVEL%"
 
 if %TEST_RESULT% EQU 0 (
     echo.
-    echo All block_command.bat tests passed!
+    echo All job_async_stop.bat tests passed!
 ) else (
     echo.
-    echo Some block_command.bat tests failed!
+    echo Some job_async_stop.bat tests failed!
 )
 
 endlocal

@@ -1,5 +1,5 @@
-# test_block_command.ps1
-# Tests for block_command.bat - synchronous command execution
+# test_job.ps1
+# Tests for job.bat - synchronous command execution
 
 param(
     [Parameter(Mandatory=$true)]
@@ -19,12 +19,12 @@ if (-not $UtilsDir) {
     exit 1
 }
 
-$BlockCommandScript = Join-Path $UtilsDir "block_command.bat"
+$JobScript = Join-Path $UtilsDir "job.bat"
 
-Write-TestHeader "block_command.bat Tests"
+Write-TestHeader "job.bat Tests"
 
 # Pre-flight checks
-if (-not (Test-PreFlightChecks -ScriptPath $BlockCommandScript -ScriptName "block_command.bat")) {
+if (-not (Test-PreFlightChecks -ScriptPath $JobScript -ScriptName "job.bat")) {
     Write-Host "Pre-flight checks failed. Aborting tests."
     exit 1
 }
@@ -35,7 +35,7 @@ Write-Host ""
 # Test 1: No arguments provided - should show error
 # ============================================================================
 Write-TestCase "Missing command argument shows error"
-$result = Run-CommandWithTimeout -Command "call `"$BlockCommandScript`"" -TimeoutSeconds 30
+$result = Run-CommandWithTimeout -Command "call `"$JobScript`"" -TimeoutSeconds 30
 Assert-OutputContains -Output $result.Output -ExpectedText "ERROR: No command specified" -TestDescription "Error message shown"
 Assert-OutputContains -Output $result.Output -ExpectedText "Usage:" -TestDescription "Usage information shown"
 
@@ -43,17 +43,17 @@ Assert-OutputContains -Output $result.Output -ExpectedText "Usage:" -TestDescrip
 # Test 2: Simple successful command (echo)
 # ============================================================================
 Write-TestCase "Simple successful command (echo hello)"
-$result = Run-CommandWithTimeout -Command "call `"$BlockCommandScript`" `"echo hello`"" -TimeoutSeconds 30
+$result = Run-CommandWithTimeout -Command "call `"$JobScript`" `"echo hello`"" -TimeoutSeconds 30
 Assert-OutputContains -Output $result.Output -ExpectedText "Status: SUCCESS" -TestDescription "Command shows SUCCESS status"
 Assert-OutputContains -Output $result.Output -ExpectedText "hello" -TestDescription "Output contains echoed text"
-Assert-OutputContains -Output $result.Output -ExpectedText "BLOCK COMMAND EXECUTOR" -TestDescription "Header is shown"
+Assert-OutputContains -Output $result.Output -ExpectedText "JOB EXECUTOR" -TestDescription "Header is shown"
 
 # ============================================================================
 # Test 3: Command with working directory
 # ============================================================================
 Write-TestCase "Command with custom working directory"
 $testDir = $env:TEMP
-$result = Run-CommandWithTimeout -Command "call `"$BlockCommandScript`" `"cd`" `"$testDir`"" -TimeoutSeconds 30
+$result = Run-CommandWithTimeout -Command "call `"$JobScript`" `"cd`" `"$testDir`"" -TimeoutSeconds 30
 Assert-OutputContains -Output $result.Output -ExpectedText "Status: SUCCESS" -TestDescription "Command shows SUCCESS"
 Assert-OutputContains -Output $result.Output -ExpectedText "Working Directory: $testDir" -TestDescription "Working directory shown in output"
 
@@ -62,7 +62,7 @@ Assert-OutputContains -Output $result.Output -ExpectedText "Working Directory: $
 # ============================================================================
 Write-TestCase "Command that generates stderr output"
 # Use 'dir nonexistent_file' which writes to stderr when file not found
-$result = Run-CommandWithTimeout -Command "call `"$BlockCommandScript`" `"dir nonexistent_file_xyz_12345`"" -TimeoutSeconds 30
+$result = Run-CommandWithTimeout -Command "call `"$JobScript`" `"dir nonexistent_file_xyz_12345`"" -TimeoutSeconds 30
 Assert-OutputContains -Output $result.Output -ExpectedText "STDERR" -TestDescription "STDERR section shown"
 
 # ============================================================================
@@ -71,7 +71,7 @@ Assert-OutputContains -Output $result.Output -ExpectedText "STDERR" -TestDescrip
 # The && is interpreted by the wrapper batch, so we just verify both outputs appear.
 # ============================================================================
 Write-TestCase "Chained commands with && (both succeed)"
-$result = Run-CommandWithTimeout -Command "call `"$BlockCommandScript`" `"echo first ^&^& echo second`"" -TimeoutSeconds 30
+$result = Run-CommandWithTimeout -Command "call `"$JobScript`" `"echo first ^&^& echo second`"" -TimeoutSeconds 30
 Assert-OutputContains -Output $result.Output -ExpectedText "first" -TestDescription "First command output present"
 Assert-OutputContains -Output $result.Output -ExpectedText "second" -TestDescription "Second command output present"
 
@@ -79,14 +79,14 @@ Assert-OutputContains -Output $result.Output -ExpectedText "second" -TestDescrip
 # Test 6: Command that fails
 # ============================================================================
 Write-TestCase "Command that fails (exit 1)"
-$result = Run-CommandWithTimeout -Command "call `"$BlockCommandScript`" `"exit 1`"" -TimeoutSeconds 30
+$result = Run-CommandWithTimeout -Command "call `"$JobScript`" `"exit 1`"" -TimeoutSeconds 30
 Assert-OutputContains -Output $result.Output -ExpectedText "Status: FAILURE" -TestDescription "Failed command shows FAILURE"
 
 # ============================================================================
 # Test 7: Command with special characters in output
 # ============================================================================
 Write-TestCase "Command with special characters"
-$result = Run-CommandWithTimeout -Command "call `"$BlockCommandScript`" `"echo Hello World!`"" -TimeoutSeconds 30
+$result = Run-CommandWithTimeout -Command "call `"$JobScript`" `"echo Hello World!`"" -TimeoutSeconds 30
 Assert-OutputContains -Output $result.Output -ExpectedText "Status: SUCCESS" -TestDescription "Command with special chars succeeds"
 Assert-OutputContains -Output $result.Output -ExpectedText "Hello" -TestDescription "Output contains expected text"
 
@@ -94,7 +94,7 @@ Assert-OutputContains -Output $result.Output -ExpectedText "Hello" -TestDescript
 # Test 8: Output sections are properly formatted
 # ============================================================================
 Write-TestCase "Output sections are properly formatted"
-$result = Run-CommandWithTimeout -Command "call `"$BlockCommandScript`" `"echo test`"" -TimeoutSeconds 30
+$result = Run-CommandWithTimeout -Command "call `"$JobScript`" `"echo test`"" -TimeoutSeconds 30
 Assert-OutputContains -Output $result.Output -ExpectedText "RESULT" -TestDescription "RESULT section present"
 Assert-OutputContains -Output $result.Output -ExpectedText "STDOUT" -TestDescription "STDOUT section present"
 Assert-OutputContains -Output $result.Output -ExpectedText "STDERR" -TestDescription "STDERR section present"
@@ -104,7 +104,7 @@ Assert-OutputContains -Output $result.Output -ExpectedText "EXECUTION COMPLETE" 
 # Test 9: Default working directory (USERPROFILE)
 # ============================================================================
 Write-TestCase "Default working directory is USERPROFILE"
-$result = Run-CommandWithTimeout -Command "call `"$BlockCommandScript`" `"echo test`"" -TimeoutSeconds 30
+$result = Run-CommandWithTimeout -Command "call `"$JobScript`" `"echo test`"" -TimeoutSeconds 30
 $expectedDir = $env:USERPROFILE
 Assert-OutputContains -Output $result.Output -ExpectedText "Working Directory: $expectedDir" -TestDescription "Default directory is USERPROFILE"
 

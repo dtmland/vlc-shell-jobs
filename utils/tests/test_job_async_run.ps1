@@ -1,5 +1,5 @@
-# test_async_job.ps1
-# Tests for async_job.bat - asynchronous job execution
+# test_job_async_run.ps1
+# Tests for job_async_run.bat - asynchronous job execution
 # These tests launch background jobs and verify status files, output, and completion
 
 param(
@@ -20,14 +20,14 @@ if (-not $UtilsDir) {
     exit 1
 }
 
-$AsyncJobScript = Join-Path $UtilsDir "async_job.bat"
-$CheckJobScript = Join-Path $UtilsDir "check_job.bat"
-$StopJobScript = Join-Path $UtilsDir "stop_job.bat"
+$AsyncJobScript = Join-Path $UtilsDir "job_async_run.bat"
+$CheckJobScript = Join-Path $UtilsDir "job_async_check.bat"
+$StopJobScript = Join-Path $UtilsDir "job_async_stop.bat"
 
-Write-TestHeader "async_job.bat Tests"
+Write-TestHeader "job_async_run.bat Tests"
 
 # Pre-flight checks
-if (-not (Test-PreFlightChecks -ScriptPath $AsyncJobScript -ScriptName "async_job.bat")) {
+if (-not (Test-PreFlightChecks -ScriptPath $AsyncJobScript -ScriptName "job_async_run.bat")) {
     Write-Host "Pre-flight checks failed. Aborting tests."
     exit 1
 }
@@ -200,7 +200,7 @@ if ($jobUuid) {
 # ============================================================================
 Write-TestCase "Stop job instructions are shown"
 $result = Run-CommandWithTimeout -Command "call `"$AsyncJobScript`" `"echo quick`"" -TimeoutSeconds 30
-Assert-OutputContains -Output $result.Output -ExpectedText "stop_job.bat" -TestDescription "Stop job instructions shown"
+Assert-OutputContains -Output $result.Output -ExpectedText "job_async_stop.bat" -TestDescription "Stop job instructions shown"
 
 $jobUuid = Get-JobUuidFromOutput -Output $result.Output
 if ($jobUuid) {

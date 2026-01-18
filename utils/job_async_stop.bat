@@ -1,16 +1,16 @@
 @echo off
 REM ============================================================================
-REM stop_job.bat
+REM job_async_stop.bat
 REM 
 REM Purpose: Stop a running async job by its UUID
 REM
-REM Usage: stop_job.bat "job_uuid"
+REM Usage: job_async_stop.bat "job_uuid"
 REM
 REM Arguments:
 REM   job_uuid - The UUID of the job to stop (required)
 REM
 REM Example:
-REM   stop_job.bat "78f734c4-496c-40d0-83f4-127d43e97195"
+REM   job_async_stop.bat "78f734c4-496c-40d0-83f4-127d43e97195"
 REM
 REM This batch file replicates the stop_job function from executor.lua
 REM ============================================================================
@@ -20,7 +20,7 @@ setlocal EnableDelayedExpansion
 REM Check for UUID argument
 if "%~1"=="" (
     echo ERROR: No job UUID specified
-    echo Usage: stop_job.bat "job_uuid"
+    echo Usage: job_async_stop.bat "job_uuid"
     echo.
     echo To find running jobs, check: %APPDATA%\jobrunner\
     exit /b 1
@@ -88,7 +88,7 @@ echo.
 echo Attempting to stop the job and its child processes...
 echo.
 
-REM Get the directory where this script is located (to find create_stop_job.ps1)
+REM Get the directory where this script is located (to find create_job_async_stop.ps1)
 set "SCRIPT_DIR=%~dp0"
 
 REM Define path for the generated kill script
@@ -96,7 +96,7 @@ set "KILL_BAT=%INTERNALS_DIR%\kill_tree_runner.bat"
 
 REM Call the PowerShell script to generate the kill tree batch file
 REM This avoids complex bat-to-bat escaping issues
-powershell -NoProfile -ExecutionPolicy Bypass -File "%SCRIPT_DIR%create_stop_job.ps1" -JobPID %JOB_PID% -JobUUID "%JOB_UUID%" -OutputBatFile "%KILL_BAT%"
+powershell -NoProfile -ExecutionPolicy Bypass -File "%SCRIPT_DIR%create_job_async_stop.ps1" -JobPID %JOB_PID% -JobUUID "%JOB_UUID%" -OutputBatFile "%KILL_BAT%"
 
 REM Execute the generated kill script
 call "%KILL_BAT%"

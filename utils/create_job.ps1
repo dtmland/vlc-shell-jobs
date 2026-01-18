@@ -1,5 +1,5 @@
-# create_block_command.ps1
-# PowerShell script that generates the block_runner.bat file for troubleshooting
+# create_job.ps1
+# PowerShell script that generates the job_runner.bat file for troubleshooting
 # This avoids complex batch escaping by writing batch from PowerShell
 
 param(
@@ -61,7 +61,7 @@ $psOneLiner = "powershell -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden
 # Write the batch file
 $batContent = @"
 @echo off
-REM Generated batch file for block_command execution
+REM Generated batch file for job execution
 REM This file can be run manually for troubleshooting
 REM Command: $Command
 REM Working Directory: $CommandDir

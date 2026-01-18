@@ -26,82 +26,82 @@ REM Track which tests passed/failed
 set "FAILED_TESTS="
 
 REM ============================================================================
-REM Run test_block_command.bat
+REM Run test_job_async_run.bat
 REM ============================================================================
 echo.
 echo ############################################################################
-echo RUNNING: test_block_command.bat
+echo RUNNING: test_job_async_run.bat
 echo ############################################################################
 echo.
 
-call "%SCRIPT_DIR%test_block_command.bat"
+call "%SCRIPT_DIR%test_job_async_run.bat"
 if %ERRORLEVEL% EQU 0 (
     set /a PASSED_COUNT+=1
-    echo [SUITE PASSED] test_block_command.bat
+    echo [SUITE PASSED] test_job_async_run.bat
 ) else (
     set /a FAILED_COUNT+=1
-    set "FAILED_TESTS=!FAILED_TESTS! test_block_command.bat"
-    echo [SUITE FAILED] test_block_command.bat
+    set "FAILED_TESTS=!FAILED_TESTS! test_job_async_run.bat"
+    echo [SUITE FAILED] test_job_async_run.bat
 )
 set /a TOTAL_COUNT+=1
 
 REM ============================================================================
-REM Run test_async_job.bat
+REM Run test_job_async_check.bat
 REM ============================================================================
 echo.
 echo ############################################################################
-echo RUNNING: test_async_job.bat
+echo RUNNING: test_job_async_check.bat
 echo ############################################################################
 echo.
 
-call "%SCRIPT_DIR%test_async_job.bat"
+call "%SCRIPT_DIR%test_job_async_check.bat"
 if %ERRORLEVEL% EQU 0 (
     set /a PASSED_COUNT+=1
-    echo [SUITE PASSED] test_async_job.bat
+    echo [SUITE PASSED] test_job_async_check.bat
 ) else (
     set /a FAILED_COUNT+=1
-    set "FAILED_TESTS=!FAILED_TESTS! test_async_job.bat"
-    echo [SUITE FAILED] test_async_job.bat
+    set "FAILED_TESTS=!FAILED_TESTS! test_job_async_check.bat"
+    echo [SUITE FAILED] test_job_async_check.bat
 )
 set /a TOTAL_COUNT+=1
 
 REM ============================================================================
-REM Run test_check_job.bat
+REM Run test_job_async_stop.bat
 REM ============================================================================
 echo.
 echo ############################################################################
-echo RUNNING: test_check_job.bat
+echo RUNNING: test_job_async_stop.bat
 echo ############################################################################
 echo.
 
-call "%SCRIPT_DIR%test_check_job.bat"
+call "%SCRIPT_DIR%test_job_async_stop.bat"
 if %ERRORLEVEL% EQU 0 (
     set /a PASSED_COUNT+=1
-    echo [SUITE PASSED] test_check_job.bat
+    echo [SUITE PASSED] test_job_async_stop.bat
 ) else (
     set /a FAILED_COUNT+=1
-    set "FAILED_TESTS=!FAILED_TESTS! test_check_job.bat"
-    echo [SUITE FAILED] test_check_job.bat
+    set "FAILED_TESTS=!FAILED_TESTS! test_job_async_stop.bat"
+    echo [SUITE FAILED] test_job_async_stop.bat
 )
 set /a TOTAL_COUNT+=1
 
 REM ============================================================================
-REM Run test_stop_job.bat
+REM Run test_job.bat
 REM ============================================================================
 echo.
 echo ############################################################################
-echo RUNNING: test_stop_job.bat
+echo RUNNING: test_job.bat
 echo ############################################################################
 echo.
 
-call "%SCRIPT_DIR%test_stop_job.bat"
+call "%SCRIPT_DIR%test_job.bat"
 if %ERRORLEVEL% EQU 0 (
     set /a PASSED_COUNT+=1
-    echo [SUITE PASSED] test_stop_job.bat
+    echo [SUITE PASSED] test_job.bat
 ) else (
     set /a FAILED_COUNT+=1
-    set "FAILED_TESTS=!FAILED_TESTS! test_stop_job.bat"
-    echo [SUITE FAILED] test_stop_job.bat
+    set "FAILED_TESTS=!FAILED_TESTS! test_job.bat"
+    echo [SUITE FAILED] test_job.bat
 )
 set /a TOTAL_COUNT+=1
 
