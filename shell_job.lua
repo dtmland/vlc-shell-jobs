@@ -20,112 +20,6 @@ local function generate_uuid()
     end)
 end
 
--- Function to get the base jobrunner directory (parent of individual job directories)
-local function get_jobrunner_base_directory()
-    if package.config:sub(1,1) == '\\' then
-        -- Windows
-        return os.getenv("APPDATA") .. "\\jobrunner"
-    else
-        -- UNIX
-        return os.getenv("HOME") .. "/.config/jobrunner"
-    end
-end
-
--- Function to get path separator for current OS
-local function get_path_separator()
-    if package.config:sub(1,1) == '\\' then
-        return "\\"
-    else
-        return "/"
-    end
-end
-
--- Function to check if a path is a directory using vlc.io.readdir
-local function is_directory(path)
-    -- vlc.io.readdir returns a table for directories, nil for files or non-existent paths
-    local entries = vlc.io.readdir(path)
-    return entries ~= nil
-end
-
--- Function to get file/directory modification time
--- Returns the modification time as a timestamp, or nil if unavailable
-local function get_modification_time(path)
-    local sep = get_path_separator()
-    
-    -- Check if job_uuid.txt exists to verify this is a valid job directory
-    -- We use vlc.io.open as a way to check file existence
-    local uuid_file = path .. sep .. "job_uuid.txt"
-    local file = vlc.io.open(uuid_file, "r")
-    if not file then
-        return nil
-    end
-    file:close()
-    
-    -- Windows file time epoch constant: difference in 100-nanosecond intervals
-    -- between Windows file time epoch (Jan 1, 1601) and Unix epoch (Jan 1, 1970)
-    local WINDOWS_EPOCH_OFFSET = 116444736000000000
-    
-    -- Get file attributes using shell commands for cross-platform compatibility
-    -- Check the stdout.txt file's last modified time
-    local mtime = nil
-    local stdout_file = path .. sep .. "stdout.txt"
-    
-    if package.config:sub(1,1) == '\\' then
-        -- Windows: Use PowerShell to get file modification time
-        local cmd = 'powershell -NoProfile -Command "(Get-Item -LiteralPath \'' .. stdout_file .. '\' -ErrorAction SilentlyContinue).LastWriteTime.ToFileTimeUtc()"'
-        local handle = io.popen(cmd, "r")
-        if handle then
-            local result = handle:read("*all"):gsub("%s+", "")
-            handle:close()
-            if result and result ~= "" then
-                -- Convert Windows file time to Unix timestamp
-                -- Windows file time is 100-nanosecond intervals since Jan 1, 1601
-                local filetime = tonumber(result)
-                if filetime then
-                    -- Convert to Unix timestamp (seconds since Jan 1, 1970)
-                    mtime = math.floor((filetime - WINDOWS_EPOCH_OFFSET) / 10000000)
-                end
-            end
-        end
-    else
-        -- UNIX: Use stat command
-        local cmd = 'stat -c %Y "' .. stdout_file .. '" 2>/dev/null'
-        local handle = io.popen(cmd, "r")
-        if handle then
-            local result = handle:read("*all"):gsub("%s+", "")
-            handle:close()
-            mtime = tonumber(result)
-        end
-    end
-    
-    return mtime
-end
-
--- Function to recursively remove a directory and its contents
-local function remove_directory_recursive(path)
-    local sep = get_path_separator()
-    local entries = vlc.io.readdir(path)
-    
-    if entries then
-        for _, entry in ipairs(entries) do
-            if entry ~= "." and entry ~= ".." then
-                local full_path = path .. sep .. entry
-                if is_directory(full_path) then
-                    remove_directory_recursive(full_path)
-                else
-                    os.remove(full_path)
-                end
-            end
-        end
-    end
-    
-    -- Remove the directory itself
-    if package.config:sub(1,1) == '\\' then
-        os.execute('rmdir "' .. path .. '" 2>nul')
-    else
-        os.execute('rmdir "' .. path .. '" 2>/dev/null')
-    end
-end
 
 -- Function to clean up old job directories
 -- max_age_seconds: Maximum age in seconds before a job directory is considered old (default: 1 day)
@@ -133,42 +27,24 @@ end
 function job_runner.cleanup_old_jobs(max_age_seconds)
     max_age_seconds = max_age_seconds or DEFAULT_CLEANUP_AGE_SECONDS
     
-    local base_dir = get_jobrunner_base_directory()
-    local sep = get_path_separator()
-    local current_time = os.time()
     local cleaned_count = 0
+    local directories = executor.get_job_directories_with_ages()
     
-    -- Check if base directory exists
-    local entries = vlc.io.readdir(base_dir)
-    if not entries then
-        vlc.msg.dbg("Cleanup: Base jobrunner directory does not exist: " .. base_dir)
+    if not directories or #directories == 0 then
+        vlc.msg.dbg("Cleanup: No job directories found")
         return 0
     end
     
-    vlc.msg.dbg("Cleanup: Checking for old jobs in: " .. base_dir)
+    vlc.msg.dbg("Cleanup: Found " .. #directories .. " job directories")
     
-    for _, entry in ipairs(entries) do
-        if entry ~= "." and entry ~= ".." then
-            local job_path = base_dir .. sep .. entry
-            
-            -- Only process directories
-            if is_directory(job_path) then
-                local mtime = get_modification_time(job_path)
-                
-                if mtime then
-                    local age_seconds = current_time - mtime
-                    
-                    if age_seconds > max_age_seconds then
-                        vlc.msg.dbg("Cleanup: Removing old job directory (age: " .. age_seconds .. "s): " .. entry)
-                        remove_directory_recursive(job_path)
-                        cleaned_count = cleaned_count + 1
-                    else
-                        vlc.msg.dbg("Cleanup: Job directory still recent (age: " .. age_seconds .. "s): " .. entry)
-                    end
-                else
-                    vlc.msg.dbg("Cleanup: Could not determine age for: " .. entry)
-                end
+    for _, dir_info in ipairs(directories) do
+        if dir_info.age_seconds > max_age_seconds then
+            vlc.msg.dbg("Cleanup: Removing old job directory (age: " .. dir_info.age_seconds .. "s): " .. dir_info.name)
+            if executor.remove_job_directory(dir_info.name) then
+                cleaned_count = cleaned_count + 1
             end
+        else
+            vlc.msg.dbg("Cleanup: Job directory still recent (age: " .. dir_info.age_seconds .. "s): " .. dir_info.name)
         end
     end
     
@@ -178,6 +54,7 @@ function job_runner.cleanup_old_jobs(max_age_seconds)
     
     return cleaned_count
 end
+
 
 function job_runner.job(command, command_directory)
     return executor.job(command, command_directory)
@@ -196,7 +73,7 @@ function job_runner.new()
         job_uuid = nil,
         stdout_file = nil,
         stderr_file = nil,
-        status_check_counter = 0,
+        abort_counter = 0,
         cleanup_age_seconds = DEFAULT_CLEANUP_AGE_SECONDS
     }
 
@@ -587,15 +464,6 @@ function job_runner.new()
     function self.status()
         local result = ""
 
-        -- Increment status check counter
-        self.status_check_counter = self.status_check_counter + 1
-        
-        -- Run cleanup every 3rd status check ("pumped")
-        if self.status_check_counter % 3 == 0 then
-            msg_wrapper("dbg", "Status check pumped (count: " .. self.status_check_counter .. "), running cleanup...")
-            job_runner.cleanup_old_jobs(self.cleanup_age_seconds)
-        end
-
         if no_job_found() then
             local msg = "Job not running. Please run job first..."
             msg_wrapper("info", msg)
@@ -617,6 +485,13 @@ function job_runner.new()
     
     function self.abort()
         local result = ""
+
+        -- Increment abort counter and run cleanup every 3rd abort ("pumped")
+        self.abort_counter = self.abort_counter + 1
+        if self.abort_counter % 3 == 0 then
+            msg_wrapper("dbg", "Abort pumped (count: " .. self.abort_counter .. "), running cleanup...")
+            job_runner.cleanup_old_jobs(self.cleanup_age_seconds)
+        end
 
         if no_job_found() then
             local msg = "No job to stop."

@@ -50,11 +50,9 @@ function New-TestJobDirectory {
     [System.IO.File]::WriteAllText("$jobDir\stdout.txt", "test output" + [Environment]::NewLine)
     [System.IO.File]::WriteAllText("$jobDir\stderr.txt", "")
     
-    # Set the last write time to simulate age
+    # Set the last write time on the directory itself to simulate age
     $targetTime = (Get-Date).AddSeconds(-$AgeSeconds)
-    Get-ChildItem -Path $jobDir | ForEach-Object {
-        $_.LastWriteTime = $targetTime
-    }
+    (Get-Item $jobDir).LastWriteTime = $targetTime
     
     return $jobDir
 }

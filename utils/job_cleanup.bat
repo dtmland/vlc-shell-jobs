@@ -33,29 +33,20 @@ if not exist "%JOBRUNNER_DIR%" (
     exit /b 0
 )
 
-REM Use PowerShell to find and remove old directories
+REM Use PowerShell to get all directories with their ages in a single call and clean up old ones
 powershell -NoProfile -ExecutionPolicy Bypass -Command ^
     "$maxAgeSeconds = %MAX_AGE_SECONDS%;" ^
     "$jobrunnerDir = '%JOBRUNNER_DIR%';" ^
-    "$currentTime = Get-Date;" ^
     "$cleanedCount = 0;" ^
     "if (Test-Path $jobrunnerDir) {" ^
     "    Get-ChildItem -Path $jobrunnerDir -Directory | ForEach-Object {" ^
-    "        $stdoutFile = Join-Path $_.FullName 'stdout.txt';" ^
-    "        $jobStatusFile = Join-Path $_.FullName 'job_status.txt';" ^
-    "        $checkFile = if (Test-Path $stdoutFile) { $stdoutFile } elseif (Test-Path $jobStatusFile) { $jobStatusFile } else { $null };" ^
-    "        if ($checkFile) {" ^
-    "            $lastWriteTime = (Get-Item $checkFile).LastWriteTime;" ^
-    "            $ageSeconds = ($currentTime - $lastWriteTime).TotalSeconds;" ^
-    "            if ($ageSeconds -gt $maxAgeSeconds) {" ^
-    "                Write-Host ('Removing old job directory (age: ' + [math]::Round($ageSeconds) + 's): ' + $_.Name);" ^
-    "                Remove-Item -Path $_.FullName -Recurse -Force -ErrorAction SilentlyContinue;" ^
-    "                $cleanedCount++;" ^
-    "            } else {" ^
-    "                Write-Host ('Keeping recent job directory (age: ' + [math]::Round($ageSeconds) + 's): ' + $_.Name);" ^
-    "            }" ^
+    "        $ageSeconds = [int]((Get-Date) - $_.LastWriteTime).TotalSeconds;" ^
+    "        if ($ageSeconds -gt $maxAgeSeconds) {" ^
+    "            Write-Host ('Removing old job directory (age: ' + $ageSeconds + 's): ' + $_.Name);" ^
+    "            Remove-Item -Path $_.FullName -Recurse -Force -ErrorAction SilentlyContinue;" ^
+    "            $cleanedCount++;" ^
     "        } else {" ^
-    "            Write-Host ('Could not determine age for: ' + $_.Name);" ^
+    "            Write-Host ('Keeping recent job directory (age: ' + $ageSeconds + 's): ' + $_.Name);" ^
     "        }" ^
     "    }" ^
     "}" ^

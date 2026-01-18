@@ -213,7 +213,7 @@ job_cleanup.bat 604800
 
 **Features:**
 - Scans `%APPDATA%\jobrunner\` for job directories
-- Checks modification time of stdout.txt or job_status.txt files
+- Checks the directory's last modification time (not individual files)
 - Removes directories older than the specified age threshold
 - Reports which directories were removed vs kept
 - Safe to run at any time - does not affect running jobs that are still recent
