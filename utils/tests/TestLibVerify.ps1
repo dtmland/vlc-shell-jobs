@@ -42,15 +42,15 @@ Write-Host "Test 2: Run-CommandWithTimeout with batch file (no args)"
 Write-Host "============================================================================"
 
 $utilsDir = (Resolve-Path "$PSScriptRoot\.." -ErrorAction SilentlyContinue).Path
-$blockCommandScript = Join-Path $utilsDir "block_command.bat"
+$jobScript = Join-Path $utilsDir "job.bat"
 
 Write-Host "  Utils Dir: $utilsDir"
-Write-Host "  Block Command Script: $blockCommandScript"
-Write-Host "  Script Exists: $(Test-Path $blockCommandScript)"
+Write-Host "  Job Script: $jobScript"
+Write-Host "  Script Exists: $(Test-Path $jobScript)"
 
-if (Test-Path $blockCommandScript) {
+if (Test-Path $jobScript) {
     # Call without arguments - should show usage error
-    $result2 = Run-CommandWithTimeout -Command "call `"$blockCommandScript`"" -TimeoutSeconds 30
+    $result2 = Run-CommandWithTimeout -Command "call `"$jobScript`"" -TimeoutSeconds 30
     
     Write-Host "  Exit Code: $($result2.ExitCode)"
     Write-Host "  Timed Out: $($result2.TimedOut)"
@@ -65,12 +65,12 @@ if (Test-Path $blockCommandScript) {
     }
     
     if ($result2.Output -like "*ERROR*" -or $result2.Output -like "*Usage*") {
-        Write-Host "  [PASS] Got expected error/usage output from block_command.bat (no args)"
+        Write-Host "  [PASS] Got expected error/usage output from job.bat (no args)"
     } else {
-        Write-Host "  [FAIL] Did not get expected output from block_command.bat"
+        Write-Host "  [FAIL] Did not get expected output from job.bat"
     }
 } else {
-    Write-Host "  [SKIP] block_command.bat not found at expected path"
+    Write-Host "  [SKIP] job.bat not found at expected path"
 }
 Write-Host ""
 
@@ -129,14 +129,14 @@ Remove-Item $tempStdout -Force -ErrorAction SilentlyContinue
 $process.Dispose()
 Write-Host ""
 
-# Test 4: Run block_command.bat with an argument
+# Test 4: Run job.bat with an argument
 Write-Host "============================================================================"
-Write-Host "Test 4: Run block_command.bat with 'echo hello' argument"
+Write-Host "Test 4: Run job.bat with 'echo hello' argument"
 Write-Host "============================================================================"
 
-if (Test-Path $blockCommandScript) {
+if (Test-Path $jobScript) {
     # Use call to run the batch file with arguments
-    $testCommand = "call `"$blockCommandScript`" `"echo hello`""
+    $testCommand = "call `"$jobScript`" `"echo hello`""
     Write-Host "  Full command: $testCommand"
     
     $result4 = Run-CommandWithTimeout -Command $testCommand -TimeoutSeconds 30
@@ -152,12 +152,12 @@ if (Test-Path $blockCommandScript) {
     }
     
     if ($result4.Output -like "*BLOCK COMMAND*" -or $result4.Output -like "*hello*" -or $result4.Output -like "*Status*") {
-        Write-Host "  [PASS] Got expected output from block_command.bat with args"
+        Write-Host "  [PASS] Got expected output from job.bat with args"
     } else {
         Write-Host "  [FAIL] Did not get expected output"
     }
 } else {
-    Write-Host "  [SKIP] block_command.bat not found"
+    Write-Host "  [SKIP] job.bat not found"
 }
 Write-Host ""
 
@@ -170,7 +170,7 @@ $tempBatch2 = [System.IO.Path]::GetTempFileName() + ".bat"
 $tempOut = [System.IO.Path]::GetTempFileName()
 $tempErr = [System.IO.Path]::GetTempFileName()
 
-$testCmd = "call `"$blockCommandScript`" `"echo hello`""
+$testCmd = "call `"$jobScript`" `"echo hello`""
 $batchContent2 = @"
 @echo off
 $testCmd > "$tempOut" 2> "$tempErr"

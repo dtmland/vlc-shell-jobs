@@ -23,17 +23,17 @@ This will execute all test suites and provide a summary of passed/failed suites.
 Each script has its own test file that can be run independently:
 
 ```batch
-REM Test block_command.bat (synchronous command execution)
-test_block_command.bat
+REM Test job.bat (synchronous command execution)
+test_job.bat
 
-REM Test async_job.bat (asynchronous job execution)
-test_async_job.bat
+REM Test job_async_run.bat (asynchronous job execution)
+test_job_async_run.bat
 
-REM Test check_job.bat (job status checking)
-test_check_job.bat
+REM Test job_async_check.bat (job status checking)
+test_job_async_check.bat
 
-REM Test stop_job.bat (stopping running jobs)
-test_stop_job.bat
+REM Test job_async_stop.bat (stopping running jobs)
+test_job_async_stop.bat
 ```
 
 ## Test Structure
@@ -46,9 +46,9 @@ Each test suite consists of:
 
 ## Test Cases
 
-### test_block_command.bat
+### test_job.bat
 
-Tests for `block_command.bat` - synchronous command execution:
+Tests for `job.bat` - synchronous command execution:
 
 - Missing command argument error handling
 - Simple successful command execution
@@ -60,9 +60,9 @@ Tests for `block_command.bat` - synchronous command execution:
 - Output section formatting
 - Default working directory behavior
 
-### test_async_job.bat
+### test_job_async_run.bat
 
-Tests for `async_job.bat` - asynchronous job execution:
+Tests for `job_async_run.bat` - asynchronous job execution:
 
 - Missing command argument error handling
 - Job launch with UUID generation
@@ -77,9 +77,9 @@ Tests for `async_job.bat` - asynchronous job execution:
 - Final status section display
 - Stop job instructions display
 
-### test_check_job.bat
+### test_job_async_check.bat
 
-Tests for `check_job.bat` - job status checking:
+Tests for `job_async_check.bat` - job status checking:
 
 - Missing UUID argument error handling
 - Invalid UUID error handling
@@ -93,9 +93,9 @@ Tests for `check_job.bat` - job status checking:
 - Parallel operation with running jobs
 - Session files location display
 
-### test_stop_job.bat
+### test_job_async_stop.bat
 
-Tests for `stop_job.bat` - stopping running jobs:
+Tests for `job_async_stop.bat` - stopping running jobs:
 
 - Missing UUID argument error handling
 - Invalid UUID error handling
@@ -120,7 +120,7 @@ The `TestLib.ps1` module provides:
   - `Assert-ExitCodeZero` - Verify successful exit
   - `Assert-ExitCodeNonZero` - Verify failed exit
 - **Utilities**:
-  - `Get-JobUuidFromOutput` - Extract UUID from async_job output
+  - `Get-JobUuidFromOutput` - Extract UUID from job_async_run output
   - `Wait-ForJobStatus` - Wait for job to reach expected status
   - `Cleanup-JobDirectory` - Remove job directory after test
   - `Run-CommandWithTimeout` - Execute command with timeout
@@ -129,7 +129,7 @@ The `TestLib.ps1` module provides:
 
 - Windows 7 or later
 - PowerShell (Windows PowerShell or PowerShell Core)
-- The batch files being tested (`async_job.bat`, `block_command.bat`, etc.)
+- The batch files being tested (`job_async_run.bat`, `job.bat`, etc.)
 
 ## Notes
 
