@@ -69,10 +69,6 @@ powershell -NoProfile -ExecutionPolicy Bypass -File "%SCRIPT_DIR%create_block_co
 REM Execute the generated runner script
 call "%RUNNER_SCRIPT%"
 
-REM Clean up the temporary scripts
-if exist "%RUNNER_SCRIPT%" del "%RUNNER_SCRIPT%"
-if exist "%INTERNALS_DIR%" rmdir "%INTERNALS_DIR%" 2>nul
-
 echo.
 echo ============================================================================
 echo EXECUTION COMPLETE

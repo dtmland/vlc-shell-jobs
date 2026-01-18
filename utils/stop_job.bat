@@ -101,9 +101,6 @@ powershell -NoProfile -ExecutionPolicy Bypass -File "%SCRIPT_DIR%create_stop_job
 REM Execute the generated kill script
 call "%KILL_BAT%"
 
-REM Clean up the temporary script
-if exist "%KILL_BAT%" del "%KILL_BAT%"
-
 echo.
 echo ============================================================================
 echo Job stop command executed.

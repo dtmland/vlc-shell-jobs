@@ -194,8 +194,5 @@ echo ===========================================================================
 echo Session files located in: %INTERNALS_DIR%
 echo ============================================================================
 
-REM Clean up the temporary launch script
-if exist "%LAUNCH_SCRIPT%" del "%LAUNCH_SCRIPT%"
-
 endlocal
 exit /b 0
