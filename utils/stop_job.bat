@@ -106,38 +106,34 @@ REM   6. Recursively call Kill-Tree for all child processes
 REM   7. Finally invoke Kill-Tree with the job PID and UUID
 REM
 REM Write the PowerShell script to a .ps1 file for cleaner syntax
->"%KILL_PS1%" (
-echo function Kill-Tree {
-echo     param([int] $ppid, [string] $matchString, [bool] $matchFound = $false^)
-echo     $process = Get-CimInstance Win32_Process ^| Where-Object { $_.ProcessId -eq $ppid }
-echo     if (-not $process^) {
-echo         Write-Host "Process with PID" $ppid "not found."
-echo         return
-echo     }
-echo     if (-not $matchFound -and $process.CommandLine -like "*$matchString*"^) {
-echo         Write-Host "Match found for process PID" $ppid "and" $matchString
-echo         $matchFound = $true
-echo     } elseif (-not $matchFound^) {
-echo         Write-Host "No match for process PID" $ppid "and" $matchString ". Skipping."
-echo     } else {
-echo         Write-Host "Killing process PID" $ppid
-echo         Stop-Process -Id $ppid -Force -ErrorAction SilentlyContinue
-echo     }
-echo     Get-CimInstance Win32_Process ^| Where-Object { $_.ParentProcessId -eq $ppid } ^| ForEach-Object {
-echo         Kill-Tree -ppid $_.ProcessId -matchString $matchString -matchFound $matchFound
-echo     }
-echo }
-echo Kill-Tree -ppid %JOB_PID% -matchString '%JOB_UUID%'
-)
+echo function Kill-Tree {>"%KILL_PS1%"
+echo     param([int] $ppid, [string] $matchString, [bool] $matchFound = $false)>>"%KILL_PS1%"
+echo     $process = Get-CimInstance Win32_Process ^| Where-Object { $_.ProcessId -eq $ppid }>>"%KILL_PS1%"
+echo     if (-not $process) {>>"%KILL_PS1%"
+echo         Write-Host "Process with PID" $ppid "not found.">>"%KILL_PS1%"
+echo         return>>"%KILL_PS1%"
+echo     }>>"%KILL_PS1%"
+echo     if (-not $matchFound -and $process.CommandLine -like "*$matchString*") {>>"%KILL_PS1%"
+echo         Write-Host "Match found for process PID" $ppid "and" $matchString>>"%KILL_PS1%"
+echo         $matchFound = $true>>"%KILL_PS1%"
+echo     } elseif (-not $matchFound) {>>"%KILL_PS1%"
+echo         Write-Host "No match for process PID" $ppid "and" $matchString ". Skipping.">>"%KILL_PS1%"
+echo     } else {>>"%KILL_PS1%"
+echo         Write-Host "Killing process PID" $ppid>>"%KILL_PS1%"
+echo         Stop-Process -Id $ppid -Force -ErrorAction SilentlyContinue>>"%KILL_PS1%"
+echo     }>>"%KILL_PS1%"
+echo     Get-CimInstance Win32_Process ^| Where-Object { $_.ParentProcessId -eq $ppid } ^| ForEach-Object {>>"%KILL_PS1%"
+echo         Kill-Tree -ppid $_.ProcessId -matchString $matchString -matchFound $matchFound>>"%KILL_PS1%"
+echo     }>>"%KILL_PS1%"
+echo }>>"%KILL_PS1%"
+echo Kill-Tree -ppid %JOB_PID% -matchString '%JOB_UUID%'>>"%KILL_PS1%"
 
-REM Write the batch wrapper that calls the PowerShell script
->"%KILL_BAT%" (
-echo @echo off
-echo powershell -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File "%KILL_PS1%"
-)
+REM Write the batch wrapper for troubleshooting
+echo @echo off>"%KILL_BAT%"
+echo powershell -NoProfile -ExecutionPolicy Bypass -File "%KILL_PS1%">>"%KILL_BAT%"
 
-REM Execute the kill script
-call "%KILL_BAT%"
+REM Execute the PowerShell script directly
+powershell -NoProfile -ExecutionPolicy Bypass -File "%KILL_PS1%"
 
 REM Clean up the temporary scripts
 if exist "%KILL_BAT%" del "%KILL_BAT%"

@@ -43,8 +43,9 @@ REM Create internals directory for this run
 set "INTERNALS_DIR=%APPDATA%\jobrunner\block_%RUN_UUID%"
 mkdir "%INTERNALS_DIR%" 2>nul
 
-REM Define file paths
+REM Define file paths for troubleshooting scripts
 set "RUNNER_SCRIPT=%INTERNALS_DIR%\block_runner.bat"
+set "PS_SCRIPT=%INTERNALS_DIR%\block_runner.ps1"
 
 echo ============================================================================
 echo BLOCK COMMAND EXECUTOR
@@ -59,65 +60,45 @@ REM Define exit code designators (matching executor.lua)
 set "SUCCESS_DESIGNATOR=EXITCODE:SUCCESS"
 set "FAILURE_DESIGNATOR=EXITCODE:FAILURE"
 
-REM Build and write the runner bat file
-REM This mirrors the logic in executor.blocking_command() from executor.lua
-REM Writing to a bat file allows manual inspection and troubleshooting
-REM
-REM The PowerShell command structure:
-REM   1. Create ProcessStartInfo to launch cmd.exe with the command
-REM   2. Configure output redirection and hidden window
-REM   3. Start process and wait for completion
-REM   4. Read stdout/stderr and display formatted results
-REM   5. Check for SUCCESS/FAILURE designators to determine status
-REM
-REM We write the PowerShell script to a .ps1 file for cleaner escaping,
-REM then create a .bat wrapper that calls it.
+REM Write the PowerShell script to a file for troubleshooting
+REM Note: This file is kept for inspection if there are issues
+echo $psi = New-Object System.Diagnostics.ProcessStartInfo>"%PS_SCRIPT%"
+echo $psi.FileName = 'cmd.exe'>>"%PS_SCRIPT%"
+echo $psi.Arguments = '/c cd %COMMAND_DIR% ^^&^^& %COMMAND% ^^&^^& echo %SUCCESS_DESIGNATOR% ^^|^^| echo %FAILURE_DESIGNATOR%'>>"%PS_SCRIPT%"
+echo $psi.RedirectStandardOutput = $true>>"%PS_SCRIPT%"
+echo $psi.RedirectStandardError = $true>>"%PS_SCRIPT%"
+echo $psi.UseShellExecute = $false>>"%PS_SCRIPT%"
+echo $psi.CreateNoWindow = $true>>"%PS_SCRIPT%"
+echo $process = [System.Diagnostics.Process]::Start($psi)>>"%PS_SCRIPT%"
+echo $process.WaitForExit()>>"%PS_SCRIPT%"
+echo $stdout = $process.StandardOutput.ReadToEnd()>>"%PS_SCRIPT%"
+echo $stderr = $process.StandardError.ReadToEnd()>>"%PS_SCRIPT%"
+echo $exitCode = $process.ExitCode>>"%PS_SCRIPT%"
+echo Write-Host ''>>"%PS_SCRIPT%"
+echo Write-Host '============================================================================'>>"%PS_SCRIPT%"
+echo Write-Host 'RESULT'>>"%PS_SCRIPT%"
+echo Write-Host '============================================================================'>>"%PS_SCRIPT%"
+echo if ($stdout -match '%SUCCESS_DESIGNATOR%') { Write-Host 'Status: SUCCESS' } else { Write-Host 'Status: FAILURE' }>>"%PS_SCRIPT%"
+echo Write-Host 'Exit Code:' $exitCode>>"%PS_SCRIPT%"
+echo Write-Host ''>>"%PS_SCRIPT%"
+echo Write-Host '============================================================================'>>"%PS_SCRIPT%"
+echo Write-Host 'STDOUT'>>"%PS_SCRIPT%"
+echo Write-Host '============================================================================'>>"%PS_SCRIPT%"
+echo $stdoutClean = $stdout -replace '%SUCCESS_DESIGNATOR%', '' -replace '%FAILURE_DESIGNATOR%', ''>>"%PS_SCRIPT%"
+echo Write-Host $stdoutClean>>"%PS_SCRIPT%"
+echo Write-Host ''>>"%PS_SCRIPT%"
+echo Write-Host '============================================================================'>>"%PS_SCRIPT%"
+echo Write-Host 'STDERR'>>"%PS_SCRIPT%"
+echo Write-Host '============================================================================'>>"%PS_SCRIPT%"
+echo Write-Host $stderr>>"%PS_SCRIPT%"
+echo Write-Host ''>>"%PS_SCRIPT%"
 
-set "PS_SCRIPT=%INTERNALS_DIR%\block_runner.ps1"
+REM Write the batch wrapper for troubleshooting
+echo @echo off>"%RUNNER_SCRIPT%"
+echo powershell -NoProfile -ExecutionPolicy Bypass -File "%PS_SCRIPT%">>"%RUNNER_SCRIPT%"
 
-REM Write the PowerShell script (no batch escaping issues)
-REM Note: ^^ becomes ^ after echo processing, so ^^&^^& writes ^&^& to the file
->"%PS_SCRIPT%" (
-echo $psi = New-Object System.Diagnostics.ProcessStartInfo
-echo $psi.FileName = 'cmd.exe'
-echo $psi.Arguments = '/c cd %COMMAND_DIR% ^^&^^& %COMMAND% ^^&^^& echo %SUCCESS_DESIGNATOR% ^^|^^| echo %FAILURE_DESIGNATOR%'
-echo $psi.RedirectStandardOutput = $true
-echo $psi.RedirectStandardError = $true
-echo $psi.UseShellExecute = $false
-echo $psi.CreateNoWindow = $true
-echo $process = [System.Diagnostics.Process]::Start($psi^)
-echo $process.WaitForExit(^)
-echo $stdout = $process.StandardOutput.ReadToEnd(^)
-echo $stderr = $process.StandardError.ReadToEnd(^)
-echo $exitCode = $process.ExitCode
-echo Write-Host ''
-echo Write-Host '============================================================================'
-echo Write-Host 'RESULT'
-echo Write-Host '============================================================================'
-echo if ($stdout -match '%SUCCESS_DESIGNATOR%'^) { Write-Host 'Status: SUCCESS' } else { Write-Host 'Status: FAILURE' }
-echo Write-Host 'Exit Code:' $exitCode
-echo Write-Host ''
-echo Write-Host '============================================================================'
-echo Write-Host 'STDOUT'
-echo Write-Host '============================================================================'
-echo $stdoutClean = $stdout -replace '%SUCCESS_DESIGNATOR%', '' -replace '%FAILURE_DESIGNATOR%', ''
-echo Write-Host $stdoutClean
-echo Write-Host ''
-echo Write-Host '============================================================================'
-echo Write-Host 'STDERR'
-echo Write-Host '============================================================================'
-echo Write-Host $stderr
-echo Write-Host ''
-)
-
-REM Write the batch wrapper that calls the PowerShell script
->"%RUNNER_SCRIPT%" (
-echo @echo off
-echo powershell -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File "%PS_SCRIPT%"
-)
-
-REM Execute the runner script
-call "%RUNNER_SCRIPT%"
+REM Execute the PowerShell script directly (more reliable than calling the wrapper)
+powershell -NoProfile -ExecutionPolicy Bypass -File "%PS_SCRIPT%"
 
 REM Clean up the temporary scripts
 if exist "%RUNNER_SCRIPT%" del "%RUNNER_SCRIPT%"
