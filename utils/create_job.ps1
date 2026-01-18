@@ -19,7 +19,7 @@ param(
     [string]$FailureDesignator
 )
 
-# Build the PowerShell one-liner that mostly matches executor.lua's blocking_command
+# Build the PowerShell one-liner that mostly matches shell_execute.lua's blocking_command
 # Using '&&' and '||' directly. Using single quotes for PS string values to avoid escaping hell.
 $innerScript = @"
 `$psi = New-Object System.Diagnostics.ProcessStartInfo;

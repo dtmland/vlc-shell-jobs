@@ -26,7 +26,7 @@ param(
 )
 
 # Build the batch file content
-# This matches the pattern from executor.run_cmd_job in executor.lua
+# This matches the pattern from shell_execute.run_cmd_job in shell_execute.lua
 $batContent = @"
 @echo off
 REM Generated batch file for async job execution

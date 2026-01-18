@@ -16,7 +16,7 @@ REM   job.bat "ping -n 3 localhost"
 REM   job.bat "dir /b" "C:\Windows"
 REM   job.bat "ping -n 3 localhost && echo done"
 REM
-REM This batch file replicates the blocking_command function from executor.lua
+REM This batch file replicates the job function from shell_execute.lua
 REM ============================================================================
 
 setlocal EnableDelayedExpansion
@@ -58,7 +58,7 @@ echo Runner Script: %RUNNER_SCRIPT%
 echo ============================================================================
 echo.
 
-REM Define exit code designators (matching executor.lua)
+REM Define exit code designators (matching shell_execute.lua)
 set "SUCCESS_DESIGNATOR=EXITCODE:SUCCESS"
 set "FAILURE_DESIGNATOR=EXITCODE:FAILURE"
 

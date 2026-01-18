@@ -1,5 +1,5 @@
-local job_runner = require("extensions.job_runner")
-local GuiManager = require("extensions.gui_manager")
+local job_runner = require("extensions.shell_job")
+local GuiManager = require("extensions.dynamic_dialog")
 
 local runner_instance
 local gui_manager
@@ -124,7 +124,7 @@ function run_button_handler()
     local result = runner_instance.run()
     gui_manager:update_message(result)
     
-    --local result,stdout,stderr = job_runner.blocking_command("echo 'Hello World'")
+    --local result,stdout,stderr = job_runner.job("echo 'Hello World'")
     --local combined_output = "[RESULT]\n" .. tostring(result) .. "\n\n[STDOUT]\n" .. stdout .. "\n\n[STDERR]\n" .. stderr
     --gui_manager:update_message(combined_output)
 end

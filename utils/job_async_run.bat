@@ -16,7 +16,7 @@ REM Example:
 REM   job_async_run.bat "ping -n 10 localhost"
 REM   job_async_run.bat "ping -n 10 localhost" "C:\Windows" "PingTest"
 REM
-REM This batch file replicates the async job runner from executor.lua and job_runner.lua
+REM This batch file replicates the async job runner from shell_execute.lua and shell_job.lua
 REM ============================================================================
 
 setlocal EnableDelayedExpansion

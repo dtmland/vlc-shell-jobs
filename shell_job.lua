@@ -1,5 +1,5 @@
 local job_runner = {}
-local executor = require("extensions.executor")
+local executor = require("extensions.shell_execute")
 
 math.randomseed(os.time())
 
@@ -17,8 +17,8 @@ local function generate_uuid()
     end)
 end
 
-function job_runner.blocking_command(command, command_directory)
-    return executor.blocking_command(command, command_directory)
+function job_runner.job(command, command_directory)
+    return executor.job(command, command_directory)
 end
 
 function job_runner.new()
@@ -222,7 +222,7 @@ function job_runner.new()
 
 
     local function stop_job(pid, uuid)
-        return executor.stop_job(pid, uuid)
+        return executor.job_async_stop(pid, uuid)
     end
 
     local function get_status_via_file_polling()
@@ -364,8 +364,8 @@ function job_runner.new()
 
     local function run_cmd_job(name, cmd_command, cmd_directory, pid_record, uuid, stdout_file, stderr_file, 
                                status_running, status_success, status_failure)
-        return executor.run_cmd_job(name, cmd_command, cmd_directory, pid_record, uuid, stdout_file, stderr_file, 
-                                    status_running, status_success, status_failure)
+        return executor.job_async_run(name, cmd_command, cmd_directory, pid_record, uuid, stdout_file, stderr_file, 
+                                      status_running, status_success, status_failure)
     end
 
     local function run_job_via_file_polling(name, cmd_command, cmd_directory, uuid, stdout_file, 

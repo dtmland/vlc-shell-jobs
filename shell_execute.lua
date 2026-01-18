@@ -1,7 +1,7 @@
 local executor = {}
 
 
-function executor.blocking_command(command, command_directory)
+function executor.job(command, command_directory)
     local result
     local stdout
     local stderr
@@ -79,7 +79,7 @@ function executor.blocking_command(command, command_directory)
 end
 
 
-function executor.stop_job(pid, uuid)
+function executor.job_async_stop(pid, uuid)
     local result = ""
 
     if package.config:sub(1,1) == '\\' then
@@ -123,7 +123,7 @@ function executor.stop_job(pid, uuid)
 end
 
 
-function executor.run_cmd_job(name, cmd_command, cmd_directory, pid_record, uuid, stdout_file, stderr_file, 
+function executor.job_async_run(name, cmd_command, cmd_directory, pid_record, uuid, stdout_file, stderr_file, 
                                status_running, status_success, status_failure)
     local one_liner = table.concat({
         "start ",

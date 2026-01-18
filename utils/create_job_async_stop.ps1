@@ -13,7 +13,7 @@ param(
     [string]$OutputBatFile
 )
 
-# Build the PowerShell one-liner that matches executor.lua's stop_job Kill-Tree function
+# Build the PowerShell one-liner that matches shell_execute.lua's stop_job Kill-Tree function
 # Option 2: Define clean script, then collapse
 $innerScript = @"
 function Kill-Tree {

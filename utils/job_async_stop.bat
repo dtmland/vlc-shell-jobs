@@ -12,7 +12,7 @@ REM
 REM Example:
 REM   job_async_stop.bat "78f734c4-496c-40d0-83f4-127d43e97195"
 REM
-REM This batch file replicates the stop_job function from executor.lua
+REM This batch file replicates the job_async_stop function from shell_execute.lua
 REM ============================================================================
 
 setlocal EnableDelayedExpansion
