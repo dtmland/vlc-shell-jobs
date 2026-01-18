@@ -10,17 +10,17 @@ This directory contains Windows batch file utilities that replicate the core fun
 
 The utilities use a two-stage architecture to avoid complex batch escaping issues:
 
-1. **Wrapper batch file** (e.g., `block_command.bat`) - Lightweight wrapper that:
+1. **Wrapper batch file** (e.g., `job.bat`) - Lightweight wrapper that:
    - Parses arguments
    - Generates a UUID for temp files
    - Calls the PowerShell generator script
 
-2. **PowerShell generator** (e.g., `create_block_command.ps1`) - Generates the final `.bat` file:
+2. **PowerShell generator** (e.g., `create_job.ps1`) - Generates the final `.bat` file:
    - Writing batch from PowerShell avoids complex escaping
    - The generated `.bat` file matches the lua `one_liner` pattern exactly
    - The generated file can be manually run for troubleshooting
 
-3. **Generated runner batch** (e.g., `block_runner.bat`) - The actual execution script:
+3. **Generated runner batch** (e.g., `job_runner.bat`) - The actual execution script:
    - Contains the PowerShell command in the exact format from `executor.lua`
    - Can be inspected and run manually for debugging
    - Cleaned up after execution (but can be preserved by commenting out cleanup)
@@ -29,7 +29,7 @@ The utilities use a two-stage architecture to avoid complex batch escaping issue
 
 ### Main Utilities
 
-### `block_command.bat`
+### `job.bat`
 
 Runs a command synchronously (blocking) and captures stdout/stderr separately.
 
@@ -37,7 +37,7 @@ Runs a command synchronously (blocking) and captures stdout/stderr separately.
 
 **Usage:**
 ```batch
-block_command.bat "command" ["working_directory"]
+job.bat "command" ["working_directory"]
 ```
 
 **Arguments:**
@@ -47,13 +47,13 @@ block_command.bat "command" ["working_directory"]
 **Examples:**
 ```batch
 REM Simple ping command
-block_command.bat "ping -n 3 localhost"
+job.bat "ping -n 3 localhost"
 
 REM Command with custom working directory
-block_command.bat "dir /b" "C:\Windows"
+job.bat "dir /b" "C:\Windows"
 
 REM Chained commands
-block_command.bat "ping -n 3 localhost && echo done"
+job.bat "ping -n 3 localhost && echo done"
 ```
 
 **Output:**
@@ -68,7 +68,7 @@ The script will display:
 
 ---
 
-### `async_job.bat`
+### `job_async_run.bat`
 
 Runs a command asynchronously in the background, polls for status, and displays ongoing output.
 
@@ -78,7 +78,7 @@ Runs a command asynchronously in the background, polls for status, and displays 
 
 **Usage:**
 ```batch
-async_job.bat "command" ["working_directory"] ["job_name"]
+job_async_run.bat "command" ["working_directory"] ["job_name"]
 ```
 
 **Arguments:**
@@ -89,13 +89,13 @@ async_job.bat "command" ["working_directory"] ["job_name"]
 **Examples:**
 ```batch
 REM Simple async ping
-async_job.bat "ping -n 10 localhost"
+job_async_run.bat "ping -n 10 localhost"
 
 REM With custom directory and name
-async_job.bat "ping -n 10 localhost" "C:\Windows" "PingTest"
+job_async_run.bat "ping -n 10 localhost" "C:\Windows" "PingTest"
 
 REM Long-running command
-async_job.bat "ping -n 30 localhost && ping -n 30 localhost"
+job_async_run.bat "ping -n 30 localhost && ping -n 30 localhost"
 ```
 
 **Features:**
@@ -111,13 +111,46 @@ async_job.bat "ping -n 30 localhost && ping -n 30 localhost"
 - `RUNNING` - Job is currently executing
 - `SUCCESS` - Job completed successfully (exit code 0)
 - `FAILURE` - Job completed with an error (non-zero exit code)
-- `STOPPED` - Job was stopped manually via `stop_job.bat`
+- `STOPPED` - Job was stopped manually via `job_async_stop.bat`
 
-**Note on Ctrl+C:** Windows batch files cannot trap Ctrl+C before the system "Terminate batch job (Y/N)?" prompt. If you press Ctrl+C and answer Y, the polling script will exit but the background job continues. Use `stop_job.bat` to stop the background job.
+**Note on Ctrl+C:** Windows batch files cannot trap Ctrl+C before the system "Terminate batch job (Y/N)?" prompt. If you press Ctrl+C and answer Y, the polling script will exit but the background job continues. Use `job_async_stop.bat` to stop the background job.
 
 ---
 
-### `stop_job.bat`
+### `job_async_check.bat`
+
+Checks the status of a running async job by its UUID.
+
+**Based on:** Various polling functions from `job_runner.lua`
+
+**Usage:**
+```batch
+job_async_check.bat "job_uuid" [tail_lines]
+```
+
+**Arguments:**
+- `job_uuid` - The UUID of the job to check (required, displayed when job_async_run.bat starts)
+- `tail_lines` - Number of lines to show from stdout/stderr (optional, defaults to 50)
+
+**Examples:**
+```batch
+REM Check a job by UUID
+job_async_check.bat "78f734c4-496c-40d0-83f4-127d43e97195"
+
+REM Check with more output lines
+job_async_check.bat "78f734c4-496c-40d0-83f4-127d43e97195" 200
+```
+
+**Features:**
+- Shows current job status (RUNNING, SUCCESS, FAILURE, STOPPED)
+- Displays process ID (PID)
+- Shows recent stdout/stderr output
+- Can be run multiple times while job is running
+- Does not stop the job (use `job_async_stop.bat` for that)
+
+---
+
+### `job_async_stop.bat`
 
 Stops a running async job by its UUID.
 
@@ -125,16 +158,16 @@ Stops a running async job by its UUID.
 
 **Usage:**
 ```batch
-stop_job.bat "job_uuid"
+job_async_stop.bat "job_uuid"
 ```
 
 **Arguments:**
-- `job_uuid` - The UUID of the job to stop (required, displayed when async_job.bat starts)
+- `job_uuid` - The UUID of the job to stop (required, displayed when job_async_run.bat starts)
 
 **Examples:**
 ```batch
 REM Stop a job by UUID
-stop_job.bat "78f734c4-496c-40d0-83f4-127d43e97195"
+job_async_stop.bat "78f734c4-496c-40d0-83f4-127d43e97195"
 ```
 
 **Features:**
@@ -146,17 +179,17 @@ stop_job.bat "78f734c4-496c-40d0-83f4-127d43e97195"
 - Cleans up the generated script after execution
 
 **How to use:**
-1. Run `async_job.bat` and note the Job UUID displayed
+1. Run `job_async_run.bat` and note the Job UUID displayed
 2. Open a new command prompt
-3. Run `stop_job.bat "your-job-uuid"` to stop the job
+3. Run `job_async_stop.bat "your-job-uuid"` to stop the job
 
 ---
 
 ### PowerShell Generators
 
-### `create_block_command.ps1`
+### `create_job.ps1`
 
-PowerShell script that generates the `block_runner.bat` file. Called by `block_command.bat`.
+PowerShell script that generates the `job_runner.bat` file. Called by `job.bat`.
 
 **Parameters:**
 - `-Command` - The command to execute
@@ -167,9 +200,9 @@ PowerShell script that generates the `block_runner.bat` file. Called by `block_c
 
 ---
 
-### `create_async_job.ps1`
+### `create_job_async_run.ps1`
 
-PowerShell script that generates the `launch_job.bat` file. Called by `async_job.bat`.
+PowerShell script that generates the `launch_job.bat` file. Called by `job_async_run.bat`.
 
 **Parameters:**
 - `-Command` - The command to execute
@@ -182,9 +215,9 @@ PowerShell script that generates the `launch_job.bat` file. Called by `async_job
 
 ---
 
-### `create_stop_job.ps1`
+### `create_job_async_stop.ps1`
 
-PowerShell script that generates the `kill_tree_runner.bat` file. Called by `stop_job.bat`.
+PowerShell script that generates the `kill_tree_runner.bat` file. Called by `job_async_stop.bat`.
 
 **Parameters:**
 - `-JobPID` - The process ID to kill
@@ -206,13 +239,13 @@ Standalone PowerShell script that walks a process tree and kills processes match
 powershell -File kill_tree.ps1 -ProcessId <pid> -MatchString "<uuid>"
 ```
 
-**Note:** This is a standalone helper script for manual use. The `stop_job.bat` utility uses `create_stop_job.ps1` to generate a batch file with the same logic inline.
+**Note:** This is a standalone helper script for manual use. The `job_async_stop.bat` utility uses `create_job_async_stop.ps1` to generate a batch file with the same logic inline.
 
 ---
 
 ## How These Map to executor.lua
 
-### blocking_command (block_command.bat)
+### blocking_command (job.bat)
 
 The Lua code builds a PowerShell one-liner that:
 1. Creates a ProcessStartInfo object
@@ -232,7 +265,7 @@ one_liner = table.concat({
 })
 ```
 
-### run_cmd_job (async_job.bat launch section)
+### run_cmd_job (job_async_run.bat launch section)
 
 The Lua code uses `start` command to launch a background process:
 
@@ -247,7 +280,7 @@ background_command = table.concat({
 })
 ```
 
-### stop_job (stop_job.bat)
+### stop_job (job_async_stop.bat)
 
 The Lua code defines a Kill-Tree PowerShell function that:
 1. Walks the process tree from a given PID
