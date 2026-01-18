@@ -62,6 +62,16 @@ set "FAILURE_DESIGNATOR=EXITCODE:FAILURE"
 REM Build and write the runner bat file
 REM This mirrors the logic in executor.blocking_command() from executor.lua
 REM Writing to a bat file allows manual inspection and troubleshooting
+REM
+REM The PowerShell command structure (written as one line to match the lua one_liner pattern):
+REM   1. Create ProcessStartInfo to launch cmd.exe with the command
+REM   2. Configure output redirection and hidden window
+REM   3. Start process and wait for completion
+REM   4. Read stdout/stderr and display formatted results
+REM   5. Check for SUCCESS/FAILURE designators to determine status
+REM
+REM Note: The ^^&^^& and ^^|^^| escaping produces ^&^& and ^|^| in the output file,
+REM       which cmd.exe interprets correctly when running the generated bat file.
 echo @echo off>"%RUNNER_SCRIPT%"
 echo powershell -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -Command "$psi = New-Object System.Diagnostics.ProcessStartInfo; $psi.FileName = 'cmd.exe'; $psi.Arguments = '/c cd %COMMAND_DIR% ^^&^^& %COMMAND% ^^&^^& echo %SUCCESS_DESIGNATOR% ^^|^^| echo %FAILURE_DESIGNATOR%'; $psi.RedirectStandardOutput = $true; $psi.RedirectStandardError = $true; $psi.UseShellExecute = $false; $psi.CreateNoWindow = $true; $process = [System.Diagnostics.Process]::Start($psi); $process.WaitForExit(); $stdout = $process.StandardOutput.ReadToEnd(); $stderr = $process.StandardError.ReadToEnd(); $exitCode = $process.ExitCode; Write-Host ''; Write-Host '============================================================================'; Write-Host 'RESULT'; Write-Host '============================================================================'; if ($stdout -match '%SUCCESS_DESIGNATOR%') { Write-Host 'Status: SUCCESS'; } else { Write-Host 'Status: FAILURE'; } Write-Host 'Exit Code:' $exitCode; Write-Host ''; Write-Host '============================================================================'; Write-Host 'STDOUT'; Write-Host '============================================================================'; $stdoutClean = $stdout -replace '%SUCCESS_DESIGNATOR%', '' -replace '%FAILURE_DESIGNATOR%', ''; Write-Host $stdoutClean; Write-Host ''; Write-Host '============================================================================'; Write-Host 'STDERR'; Write-Host '============================================================================'; Write-Host $stderr; Write-Host ''">>"%RUNNER_SCRIPT%"
 
