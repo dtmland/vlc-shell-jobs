@@ -125,7 +125,7 @@ end
 
 function executor.run_cmd_job(name, cmd_command, cmd_directory, pid_record, uuid, stdout_file, stderr_file, 
                                status_running, status_success, status_failure)
-    local background_command = table.concat({
+    local one_liner = table.concat({
         "start ",
         "\"",name,"\"",
         " /d \"",cmd_directory,"\"",
@@ -141,8 +141,8 @@ function executor.run_cmd_job(name, cmd_command, cmd_directory, pid_record, uuid
         "\""
     })
     
-    vlc.msg.info("Running command: " .. background_command)
-    local result = os.execute(background_command)
+    vlc.msg.info("Running command: " .. one_liner)
+    local result = os.execute(one_liner)
     vlc.msg.dbg("Command executed with result: " .. tostring(result))
 end
 
