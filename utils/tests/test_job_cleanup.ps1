@@ -12,10 +12,13 @@ param(
 # Initialize test log directory for storing failed test output
 Initialize-TestLogDir
 
+# Store original path for error reporting
+$OriginalUtilsDir = $UtilsDir
+
 # Resolve the utils directory to absolute path
 $UtilsDir = (Resolve-Path $UtilsDir -ErrorAction SilentlyContinue).Path
 if (-not $UtilsDir) {
-    Write-Host "ERROR: Utils directory not found: $UtilsDir"
+    Write-Host "ERROR: Utils directory not found: $OriginalUtilsDir"
     exit 1
 }
 

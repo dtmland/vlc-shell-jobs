@@ -51,12 +51,9 @@ end
 -- Returns the modification time as a timestamp, or nil if unavailable
 local function get_modification_time(path)
     local sep = get_path_separator()
-    local status_file = path .. sep .. "job_status.txt"
     
-    -- Try to get the modification time by reading the status file
-    -- We use os.time() comparison based on when job was created
-    -- Since Lua doesn't have native stat(), we'll check if the job_uuid.txt exists
-    -- and parse its content to determine age
+    -- Check if job_uuid.txt exists to verify this is a valid job directory
+    -- We use vlc.io.open as a way to check file existence
     local uuid_file = path .. sep .. "job_uuid.txt"
     local file = vlc.io.open(uuid_file, "r")
     if not file then
@@ -64,9 +61,12 @@ local function get_modification_time(path)
     end
     file:close()
     
-    -- Get file attributes using Lua's lfs-style approach via os command
-    -- For cross-platform compatibility, we'll use a different approach:
-    -- Check the stdout.txt file's last modified time via shell command
+    -- Windows file time epoch constant: difference in 100-nanosecond intervals
+    -- between Windows file time epoch (Jan 1, 1601) and Unix epoch (Jan 1, 1970)
+    local WINDOWS_EPOCH_OFFSET = 116444736000000000
+    
+    -- Get file attributes using shell commands for cross-platform compatibility
+    -- Check the stdout.txt file's last modified time
     local mtime = nil
     local stdout_file = path .. sep .. "stdout.txt"
     
@@ -83,7 +83,7 @@ local function get_modification_time(path)
                 local filetime = tonumber(result)
                 if filetime then
                     -- Convert to Unix timestamp (seconds since Jan 1, 1970)
-                    mtime = math.floor((filetime - 116444736000000000) / 10000000)
+                    mtime = math.floor((filetime - WINDOWS_EPOCH_OFFSET) / 10000000)
                 end
             end
         end
