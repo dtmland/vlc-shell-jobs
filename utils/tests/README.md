@@ -106,6 +106,19 @@ Tests for `job_async_stop.bat` - stopping running jobs:
 - Current job status display
 - STOP JOB header formatting
 
+### test_job_cleanup.bat
+
+Tests for `job_cleanup.bat` - cleaning up old job directories:
+
+- Default max age parameter (86400 seconds = 1 day)
+- Custom max age parameter
+- Cleanup removes old job directories
+- Cleanup keeps recent job directories
+- Custom age threshold behavior
+- Reports count of removed directories
+- Handles non-existent jobrunner directory gracefully
+- Jobrunner directory path display
+
 ## Test Helpers
 
 The `TestLib.ps1` module provides:

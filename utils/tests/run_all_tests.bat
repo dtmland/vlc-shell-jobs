@@ -106,6 +106,26 @@ if %ERRORLEVEL% EQU 0 (
 set /a TOTAL_COUNT+=1
 
 REM ============================================================================
+REM Run test_job_cleanup.bat
+REM ============================================================================
+echo.
+echo ############################################################################
+echo RUNNING: test_job_cleanup.bat
+echo ############################################################################
+echo.
+
+call "%SCRIPT_DIR%test_job_cleanup.bat"
+if %ERRORLEVEL% EQU 0 (
+    set /a PASSED_COUNT+=1
+    echo [SUITE PASSED] test_job_cleanup.bat
+) else (
+    set /a FAILED_COUNT+=1
+    set "FAILED_TESTS=!FAILED_TESTS! test_job_cleanup.bat"
+    echo [SUITE FAILED] test_job_cleanup.bat
+)
+set /a TOTAL_COUNT+=1
+
+REM ============================================================================
 REM Summary
 REM ============================================================================
 echo.
