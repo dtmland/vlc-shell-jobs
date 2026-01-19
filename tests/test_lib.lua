@@ -193,4 +193,83 @@ function test_lib.assert_table_has_key(t, key, description)
     end
 end
 
+-- ============================================================================
+-- Test Fixture Helpers
+-- ============================================================================
+
+-- Get the temp directory for the current platform
+function test_lib.get_temp_dir()
+    if package.config:sub(1,1) == '\\' then
+        return os.getenv("TEMP") or os.getenv("TMP") or "C:\\Temp"
+    else
+        return "/tmp"
+    end
+end
+
+-- Get the path separator for the current platform
+function test_lib.get_path_separator()
+    return package.config:sub(1,1) == '\\' and '\\' or '/'
+end
+
+-- Create a unique test directory
+function test_lib.create_test_dir(prefix)
+    prefix = prefix or "lua_test"
+    local temp = test_lib.get_temp_dir()
+    local sep = test_lib.get_path_separator()
+    local dir = temp .. sep .. prefix .. "_" .. tostring(os.time()) .. "_" .. tostring(math.random(1000, 9999))
+    
+    local mkdir_cmd
+    if package.config:sub(1,1) == '\\' then
+        mkdir_cmd = 'mkdir "' .. dir .. '"'
+    else
+        mkdir_cmd = "mkdir -p '" .. dir .. "'"
+    end
+    os.execute(mkdir_cmd)
+    return dir
+end
+
+-- Remove a test directory
+function test_lib.remove_test_dir(dir)
+    if not dir or dir == "" then return end
+    
+    local rm_cmd
+    if package.config:sub(1,1) == '\\' then
+        rm_cmd = 'rmdir /s /q "' .. dir .. '" 2>nul'
+    else
+        rm_cmd = "rm -rf '" .. dir .. "'"
+    end
+    os.execute(rm_cmd)
+end
+
+-- Write a test file with content
+-- Returns the full path to the file, or nil on error
+function test_lib.write_test_file(dir, filename, content)
+    local sep = test_lib.get_path_separator()
+    local path = dir .. sep .. filename
+    local file = io.open(path, "w")
+    if file then
+        local success, err = file:write(content)
+        file:close()
+        if success then
+            return path
+        else
+            print("  WARNING: Failed to write to file: " .. tostring(err))
+            return nil
+        end
+    end
+    print("  WARNING: Failed to open file for writing: " .. path)
+    return nil
+end
+
+-- Read a test file content
+function test_lib.read_test_file(path)
+    local file = io.open(path, "r")
+    if file then
+        local content = file:read("*all")
+        file:close()
+        return content
+    end
+    return nil
+end
+
 return test_lib

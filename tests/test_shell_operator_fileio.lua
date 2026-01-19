@@ -11,51 +11,14 @@ package.loaded["extensions.shell_job_defs"] = dofile("shell_job_defs.lua")
 local fileio_module = dofile("shell_operator_fileio.lua")
 
 -- ============================================================================
--- Test Helpers
+-- Test Setup
 -- ============================================================================
 
--- Create a temp directory for testing
-local function get_temp_dir()
-    if package.config:sub(1,1) == '\\' then
-        return os.getenv("TEMP") or os.getenv("TMP") or "C:\\Temp"
-    else
-        return "/tmp"
-    end
-end
+local test_dir = test_lib.create_test_dir("vlc_shell_jobs_fileio_test")
+local sep = test_lib.get_path_separator()
 
-local function get_test_dir()
-    local temp = get_temp_dir()
-    local sep = package.config:sub(1,1) == '\\' and '\\' or '/'
-    return temp .. sep .. "vlc_shell_jobs_test_" .. tostring(os.time())
-end
-
-local test_dir = get_test_dir()
-local sep = package.config:sub(1,1) == '\\' and '\\' or '/'
-
--- Create test directory
-local function setup()
-    os.execute("mkdir " .. (package.config:sub(1,1) == '\\' and '"' .. test_dir .. '"' or "-p '" .. test_dir .. "'"))
-end
-
--- Cleanup test directory
-local function teardown()
-    if package.config:sub(1,1) == '\\' then
-        os.execute('rmdir /s /q "' .. test_dir .. '" 2>nul')
-    else
-        os.execute("rm -rf '" .. test_dir .. "'")
-    end
-end
-
--- Write a test file
 local function write_test_file(filename, content)
-    local path = test_dir .. sep .. filename
-    local file = io.open(path, "w")
-    if file then
-        file:write(content)
-        file:close()
-        return path
-    end
-    return nil
+    return test_lib.write_test_file(test_dir, filename, content)
 end
 
 -- ============================================================================
@@ -63,9 +26,6 @@ end
 -- ============================================================================
 
 test_lib.suite("shell_operator_fileio.lua")
-
--- Setup test environment
-setup()
 
 -- ============================================================================
 -- Test: Module creation
@@ -197,7 +157,7 @@ test_lib.assert_equals("", empty_content, "read_status returns empty string for 
 -- ============================================================================
 -- Cleanup
 -- ============================================================================
-teardown()
+test_lib.remove_test_dir(test_dir)
 
 -- ============================================================================
 -- Summary

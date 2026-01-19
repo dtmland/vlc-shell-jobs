@@ -12,47 +12,14 @@ package.loaded["extensions.shell_operator_fileio"] = dofile("shell_operator_file
 local state_module = dofile("shell_job_state.lua")
 
 -- ============================================================================
--- Test Helpers
+-- Test Setup
 -- ============================================================================
 
-local function get_temp_dir()
-    if package.config:sub(1,1) == '\\' then
-        return os.getenv("TEMP") or os.getenv("TMP") or "C:\\Temp"
-    else
-        return "/tmp"
-    end
-end
-
-local function get_test_dir()
-    local temp = get_temp_dir()
-    local sep = package.config:sub(1,1) == '\\' and '\\' or '/'
-    return temp .. sep .. "vlc_shell_jobs_state_test_" .. tostring(os.time())
-end
-
-local test_dir = get_test_dir()
-local sep = package.config:sub(1,1) == '\\' and '\\' or '/'
-
-local function setup()
-    os.execute("mkdir " .. (package.config:sub(1,1) == '\\' and '"' .. test_dir .. '"' or "-p '" .. test_dir .. "'"))
-end
-
-local function teardown()
-    if package.config:sub(1,1) == '\\' then
-        os.execute('rmdir /s /q "' .. test_dir .. '" 2>nul')
-    else
-        os.execute("rm -rf '" .. test_dir .. "'")
-    end
-end
+local test_dir = test_lib.create_test_dir("vlc_shell_jobs_state_test")
+local sep = test_lib.get_path_separator()
 
 local function write_test_file(filename, content)
-    local path = test_dir .. sep .. filename
-    local file = io.open(path, "w")
-    if file then
-        file:write(content)
-        file:close()
-        return path
-    end
-    return nil
+    return test_lib.write_test_file(test_dir, filename, content)
 end
 
 local function build_file_paths()
@@ -70,9 +37,6 @@ end
 -- ============================================================================
 
 test_lib.suite("shell_job_state.lua")
-
--- Setup test environment
-setup()
 
 -- ============================================================================
 -- Test: STATES constants are defined
@@ -280,7 +244,7 @@ test_lib.assert_equals("new-uuid-456", job_state.get_uuid(), "get_uuid() returns
 -- ============================================================================
 -- Cleanup
 -- ============================================================================
-teardown()
+test_lib.remove_test_dir(test_dir)
 
 -- ============================================================================
 -- Summary

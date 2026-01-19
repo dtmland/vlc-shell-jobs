@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # run_lua_tests.sh
 # Runs all Lua unit tests
 
