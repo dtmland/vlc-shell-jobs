@@ -17,8 +17,27 @@ This project provides a VLC extension (`shell_jobs.lua`) that allows you to exec
 
 - **`shell_jobs.lua`** - Main VLC extension entry point with GUI
 - **`shell_execute.lua`** - Core command execution logic (blocking and async commands)
-- **`shell_job.lua`** - Job management and status tracking
+- **`shell_job.lua`** - Job management and status tracking (orchestrates the modules below)
 - **`dynamic_dialog.lua`** - GUI management for the VLC extension dialog
+
+### Supporting Modules
+
+These modules provide clear separation of concerns and improve testability:
+
+- **`shell_job_defs.lua`** - Shared constants and path utilities (acts like a C header file)
+  - Job status constants (RUNNING, SUCCESS, FAILURE)
+  - File name constants (job_status.txt, job_uuid.txt, etc.)
+  - Platform-aware path building functions
+  
+- **`shell_operator_fileio.lua`** - File-based IPC operations
+  - Reading/writing status, UUID, PID, stdout, stderr files
+  - Abstracts file I/O from job logic
+  - Enables future replacement with different IPC mechanisms
+  
+- **`shell_job_state.lua`** - State machine for job lifecycle
+  - Clear state definitions (NO_JOB, PENDING, RUNNING, SUCCESS, FAILURE)
+  - State query functions (is_running, is_finished, can_run, can_abort)
+  - Human-readable blocking reason messages
 
 ### Windows Utilities (`utils/`)
 
@@ -42,9 +61,24 @@ Comprehensive test suites for the Windows batch utilities, written in PowerShell
 
 See [utils/tests/README.md](utils/tests/README.md) for detailed documentation.
 
+### Lua Module Tests (`tests/`)
+
+Unit tests for the Lua modules, designed to run standalone outside of VLC.
+
+See [tests/README.md](tests/README.md) for detailed documentation.
+
 ## Installation
 
-1. Copy the Lua extension files (`shell_jobs.lua`, `shell_execute.lua`, `shell_job.lua`, `dynamic_dialog.lua`) to your VLC extensions directory:
+1. Copy the Lua extension files to your VLC extensions directory:
+   - `shell_jobs.lua`
+   - `shell_execute.lua`
+   - `shell_job.lua`
+   - `shell_job_defs.lua`
+   - `shell_operator_fileio.lua`
+   - `shell_job_state.lua`
+   - `dynamic_dialog.lua`
+   
+   VLC extension directories:
    - **Windows**: `%APPDATA%\vlc\lua\extensions\`
    - **macOS**: `~/Library/Application Support/org.videolan.vlc/lua/extensions/`
    - **Linux**: `~/.local/share/vlc/lua/extensions/`
