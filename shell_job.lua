@@ -1,17 +1,33 @@
+-- shell_job.lua
+-- Job runner module for managing async shell jobs
+-- 
+-- This module provides a clean interface for:
+-- - Starting async shell jobs
+-- - Checking job status
+-- - Aborting running jobs
+--
+-- Architecture:
+-- - shell_job_defs.lua: Shared constants and path utilities
+-- - shell_operator_fileio.lua: File-based IPC operations
+-- - shell_job_state.lua: State machine for job lifecycle
+-- - shell_execute.lua: Low-level command execution
+
 local job_runner = {}
 local executor = require("extensions.shell_execute")
+local defs = require("extensions.shell_job_defs")
+local fileio_module = require("extensions.shell_operator_fileio")
+local state_module = require("extensions.shell_job_state")
 
 math.randomseed(os.time())
 
--- Default cleanup age in seconds (1 day = 86400 seconds)
-local DEFAULT_CLEANUP_AGE_SECONDS = 86400
+-- ============================================================================
+-- Helper Functions
+-- ============================================================================
 
 local function generate_random_number()
     return tostring(math.random(10000, 99999))
 end
 
-
--- Function to generate a UUID
 local function generate_uuid()
     local template = "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx"
     return string.gsub(template, "[xy]", function(c)
@@ -20,12 +36,13 @@ local function generate_uuid()
     end)
 end
 
+-- ============================================================================
+-- Module-Level Functions
+-- ============================================================================
 
--- Function to clean up old job directories
--- max_age_seconds: Maximum age in seconds before a job directory is considered old (default: 1 day)
--- Returns: number of directories cleaned up
+-- Clean up old job directories
 function job_runner.cleanup_old_jobs(max_age_seconds)
-    max_age_seconds = max_age_seconds or DEFAULT_CLEANUP_AGE_SECONDS
+    max_age_seconds = max_age_seconds or defs.DEFAULTS.CLEANUP_AGE_SECONDS
     
     local cleaned_count = 0
     local directories = executor.get_job_directories_with_ages()
@@ -55,35 +72,48 @@ function job_runner.cleanup_old_jobs(max_age_seconds)
     return cleaned_count
 end
 
-
+-- Run a synchronous job (blocking)
 function job_runner.job(command, command_directory)
     return executor.job(command, command_directory)
 end
 
+-- ============================================================================
+-- Job Instance Constructor
+-- ============================================================================
+
 function job_runner.new()
+    -- Instance state
     local self = {
         instance_id = nil,
         name = nil,
         command = nil,
         command_directory = nil,
         internals_directory = nil,
-        job_status_file = nil,
-        job_uuid_file = nil,
-        job_pid_file = nil,
-        job_uuid = nil,
-        stdout_file = nil,
-        stderr_file = nil,
         abort_counter = 0,
-        cleanup_age_seconds = DEFAULT_CLEANUP_AGE_SECONDS
+        cleanup_age_seconds = defs.DEFAULTS.CLEANUP_AGE_SECONDS
     }
+    
+    -- File paths (populated by configure_paths)
+    local file_paths = nil
+    
+    -- Module instances (created after paths are configured)
+    local fileio = nil
+    local job_state = nil
+    local job_uuid = nil
+
+    -- ========================================================================
+    -- Internal Helpers
+    -- ========================================================================
 
     local function msg_wrapper(level, message)
         vlc.msg[level](self.instance_id .. ": " .. message)
     end
 
+    local function open_wrapper(path, mode)
+        return vlc.io.open(path, mode)
+    end
 
     local function mkdir_wrapper(directory)
-        -- Read, write, and execute permissions for the owner, and read and execute permissions for group and others
         local mode = "0755"
         local errno = { ENOENT = 2, EEXIST = 17, EACCES = 13, EINVAL = 22 }
         msg_wrapper("dbg", "Attempt to create: " .. directory .. " with mode: " .. mode)
@@ -107,21 +137,15 @@ function job_runner.new()
                 return false
             end
         end
-
         return true
     end    
 
     local function create_directories_recursively(directory)
-
-        -- Attempt to create the directory
         local result = mkdir_wrapper(directory)
-
-        -- If successful or directory already exists, stop recursion
         if result then
             return true
         end
 
-        -- Recursively create the parent directory
         local parent_directory = directory:match("^(.*)[/\\]")
         if parent_directory then
             msg_wrapper("dbg", "Creating parent directory: " .. parent_directory)
@@ -131,7 +155,6 @@ function job_runner.new()
             end
         end
 
-        -- Retry creating the directory after parent directories are created
         return mkdir_wrapper(directory)
     end
 
@@ -139,73 +162,63 @@ function job_runner.new()
         return create_directories_recursively(path)
     end
 
-    local function open_wrapper(path, mode)
-        return vlc.io.open(path, mode)
-    end
-
     local function configure_paths()
-        local init_internals_directory
-        local init_job_status_file
-        local init_job_uuid_file
-        local init_job_pid_file
-        local init_stdout_file
-        local init_stderr_file
-        
-        if package.config:sub(1,1) == '\\' then
-            -- Windows
-            if not self.command_directory then
-                self.command_directory = os.getenv("USERPROFILE")
-            end
-
-            if not self.internals_directory then
-                init_internals_directory = os.getenv("APPDATA") .. "\\jobrunner\\" .. self.instance_id
-            end
-
-            init_job_status_file = init_internals_directory .. "\\job_status.txt"
-            init_job_uuid_file = init_internals_directory .. "\\job_uuid.txt"
-            init_job_pid_file = init_internals_directory .. "\\job_pid.txt"
-            init_stdout_file = init_internals_directory .. "\\stdout.txt"
-            init_stderr_file = init_internals_directory .. "\\stderr.txt"
-        else
-            -- "It's a UNIX system! I know this!"
-            if not self.command_directory then
-                self.command_directory = os.getenv("HOME")
-            end
-
-            if not self.internals_directory then
-                init_internals_directory = os.getenv("HOME") .. "/.config/" .. "/jobrunner/" .. self.instance_id    
-            end
-
-            init_job_status_file = init_internals_directory .. "/job_status.txt"
-            init_job_uuid_file = init_internals_directory .. "/job_uuid.txt"
-            init_job_pid_file = init_internals_directory .. "/job_pid.txt"
-            init_stdout_file = init_internals_directory .. "/stdout.txt"
-            init_stderr_file = init_internals_directory .. "/stderr.txt"
+        -- Set command directory default
+        if not self.command_directory then
+            self.command_directory = defs.get_default_command_directory()
         end
         
+        -- Set internals directory
         if not self.internals_directory then
-            self.internals_directory = init_internals_directory
+            self.internals_directory = defs.build_internals_directory(self.instance_id)
         end
-
-        self.job_status_file = init_job_status_file
-        self.job_uuid_file = init_job_uuid_file
-        self.job_pid_file = init_job_pid_file
-        self.stdout_file = init_stdout_file
-        self.stderr_file = init_stderr_file
-
+        
+        -- Build all file paths using the defs module
+        file_paths = defs.build_file_paths(self.internals_directory)
+        
+        -- Create fileio instance with VLC wrappers
+        fileio = fileio_module.new(open_wrapper, msg_wrapper)
+        
+        -- Create state machine (initially with nil uuid - will be set when job runs)
+        job_state = state_module.new(file_paths, job_uuid, fileio)
+        
         msg_wrapper("dbg", "Will use internals directory: " .. self.internals_directory)
     end
 
+    local function run_job_via_executor()
+        local status_running = "echo " .. defs.STATUS.RUNNING .. " > " .. file_paths.status
+        local status_success = "echo " .. defs.STATUS.SUCCESS .. " > " .. file_paths.status
+        local status_failure = "echo " .. defs.STATUS.FAILURE .. " > " .. file_paths.status
+
+        executor.job_async_run(
+            self.name, 
+            self.command, 
+            self.command_directory, 
+            file_paths.pid, 
+            job_uuid, 
+            file_paths.stdout, 
+            file_paths.stderr,
+            status_running, 
+            status_success, 
+            status_failure
+        )
+    end
+
+    -- ========================================================================
+    -- Public Interface: Initialization
+    -- ========================================================================
 
     function self.initialize(description, command, command_directory)
-
         self.instance_id = generate_random_number()
         self.name = description
         self.command = command
         self.command_directory = command_directory
-
         configure_paths()
     end
+
+    -- ========================================================================
+    -- Public Interface: Getters/Setters
+    -- ========================================================================
 
     function self.get_internals_directory()
         return self.internals_directory
@@ -221,311 +234,102 @@ function job_runner.new()
     end
 
     function self.set_cleanup_age_seconds(age_seconds)
-        self.cleanup_age_seconds = age_seconds or DEFAULT_CLEANUP_AGE_SECONDS
+        self.cleanup_age_seconds = age_seconds or defs.DEFAULTS.CLEANUP_AGE_SECONDS
     end
 
     function self.get_stdout_file_path()
-        return self.stdout_file
+        return file_paths and file_paths.stdout or nil
     end
 
     function self.get_stderr_file_path()
-        return self.stdout_file
+        return file_paths and file_paths.stderr or nil
     end
 
     function self.get_stdout()
-        local file = open_wrapper(self.stdout_file, "r")
-        if file then
-            local content = file:read("*all")
-            file:close()
-            return content
-        else
-            msg_wrapper("dbg", "Failed to open stdout file")
-            return nil
-        end
+        if not file_paths then return nil end
+        return fileio.read_stdout(file_paths.stdout)
     end
 
     function self.get_stderr()
-        local file = open_wrapper(self.stderr_file, "r")
-        if file then
-            local content = file:read("*all")
-            file:close()
-            return content
-        else
-            msg_wrapper("dbg", "Failed to open stderr file")
-            return nil
-        end
+        if not file_paths then return nil end
+        return fileio.read_stderr(file_paths.stderr)
     end
 
     function self.get_raw_status()
-        local file = open_wrapper(self.job_status_file, "r")
-        if file then
-            local content = file:read("*all")
-            file:close()
-            return content
-        else
-            msg_wrapper("dbg", "Failed to open job status file")
-            return nil
-        end
+        if not file_paths then return nil end
+        return fileio.read_status(file_paths.status)
     end
 
-
-
-    local function stop_job(pid, uuid)
-        return executor.job_async_stop(pid, uuid)
-    end
-
-    local function get_status_via_file_polling()
-        local result = ""
-        local file = open_wrapper(self.job_status_file, "r")
-        if file then
-            result = file:read("*all"):gsub("%s+", "")
-            file:close()
-        else
-            msg_wrapper("dbg", "Failed to open job status file")
-        end
-
-        return result
-    end
-
-    local function get_pid_via_file_polling()
-        local result = ""
-        local file = open_wrapper(self.job_pid_file, "r")
-        if file then
-            result = file:read("*all"):gsub("%s+", "")
-            file:close()
-        else
-            msg_wrapper("dbg", "Failed to open job PID file")
-        end
-
-        return result
-    end
-
-    local function set_uuid_via_file_polling(file_path, uuid)
-        local file = open_wrapper(file_path, "w")
-        if file then
-            file:write(uuid)
-            file:close()
-        else
-            msg_wrapper("dbg", "Failed to open job UUID file")
-        end
-    end
-
-    local function get_uuid_via_file_polling(file_path)
-        local result = ""
-        local file = open_wrapper(file_path, "r")
-        if file then
-            result = file:read("*all"):gsub("%s+", "")
-            file:close()
-        else
-            msg_wrapper("dbg", "Failed to open job UUID file")
-        end
-
-        return result
-    end
-
-    local function job_pending_via_file_polling()
-        local result = false
-
-        if get_uuid_via_file_polling(self.job_uuid_file) == self.job_uuid then
-            if get_status_via_file_polling() == "" then
-                result = true
-            end            
-        end
-
-        return result
-    end
-
-    local function job_aleady_running_via_file_polling()
-        local result = false
-
-        if get_uuid_via_file_polling(self.job_uuid_file) == self.job_uuid then
-            local status = get_status_via_file_polling()
-            if status == "RUNNING" then
-                result = true
-            end
-        end
-
-        return result
-    end
-
-    local function no_job_found_via_file_polling()
-        local result = false
-        
-        if get_uuid_via_file_polling(self.job_uuid_file) ~= self.job_uuid then
-            result = true
-        end
-
-        return result
-    end
-
-    local function job_finished_via_file_polling()
-        local result = false
-
-        if get_uuid_via_file_polling(self.job_uuid_file) == self.job_uuid then
-            local status = get_status_via_file_polling()
-            if status == "SUCCESS" or status == "FAILURE" then
-                result = true
-            end
-        end
-
-        return result
-    end
-
-    local function get_pretty_status_via_file_polling()
-        local function safe_read(file_path)
-            local file = open_wrapper(file_path, "r")
-            if file then
-                local content = file:read("*all")
-                file:close()
-                return content or "<waiting for status...>"
-            else
-                return "<waiting for status...>"
-            end
-        end
-
-        local status = safe_read(self.job_status_file)
-        local stdout = safe_read(self.stdout_file)
-        local stderr = safe_read(self.stderr_file)
-
-        local result = ""
-        result = result .. "Job Status: " .. status .. "\n"
-        result = result .. "Standard Output: " .. stdout .. "\n"
-        result = result .. "Standard Error: " .. stderr .. "\n"
-        return result
-    end
-
-
-    local function job_pending()
-        return job_pending_via_file_polling()
-    end
-
-    local function job_already_running()
-        return job_aleady_running_via_file_polling()
-    end
-
-    local function no_job_found()
-        return no_job_found_via_file_polling()
-    end
-
-    local function job_finished()
-        return job_finished_via_file_polling()
-    end
-
-    local function run_cmd_job(name, cmd_command, cmd_directory, pid_record, uuid, stdout_file, stderr_file, 
-                               status_running, status_success, status_failure)
-        return executor.job_async_run(name, cmd_command, cmd_directory, pid_record, uuid, stdout_file, stderr_file, 
-                                      status_running, status_success, status_failure)
-    end
-
-    local function run_job_via_file_polling(name, cmd_command, cmd_directory, uuid, stdout_file, 
-                                            stderr_file, job_status_file)
-        local pid_record = self.job_pid_file
-
-        local status_running = table.concat({"echo RUNNING > ",self.job_status_file})
-        local status_success = table.concat({"echo SUCCESS > ",self.job_status_file})
-        local status_failure = table.concat({"echo FAILURE > ",self.job_status_file})
-
-        run_cmd_job(name, cmd_command, cmd_directory, pid_record, uuid, self.stdout_file, self.stderr_file,
-                    status_running, status_success, status_failure)
-    end
-
+    -- ========================================================================
+    -- Public Interface: Job Actions
+    -- ========================================================================
 
     function self.run()
-
+        -- Ensure internals directory exists
         if not ensure_directory(self.internals_directory) then
             local msg = "Failed to create internals directory. Please see logs"
             msg_wrapper("err", msg)
             return msg
         end
 
-        if job_pending() then
-            local msg = "Job still pending."
-            msg_wrapper("info", msg)
-            return msg
+        -- Check if we can run (using state machine)
+        local blocked_reason = job_state.get_run_blocked_reason()
+        if blocked_reason then
+            msg_wrapper("info", blocked_reason)
+            return blocked_reason
         end
 
-        if job_already_running() then
-            local msg = "Job already running."
-            msg_wrapper("info", msg)
-            return msg
-        end
-
-        self.job_uuid = generate_uuid()
-        set_uuid_via_file_polling(self.job_uuid_file, self.job_uuid)
-
-        run_job_via_file_polling(self.name, self.command, self.command_directory,
-                                 self.job_uuid, self.stdout_file, self.stderr_file, self.job_status_file)
+        -- Generate new UUID and update state machine
+        job_uuid = generate_uuid()
+        job_state.set_uuid(job_uuid)
+        
+        -- Write UUID to file and launch job
+        fileio.write_uuid(file_paths.uuid, job_uuid)
+        run_job_via_executor()
 
         local result = "Job \"" .. self.name .. "\" now launching..."
         return result
     end    
 
-
     function self.status()
-        local result = ""
-
-        if no_job_found() then
-            local msg = "Job not running. Please run job first..."
-            msg_wrapper("info", msg)
-            return msg
+        -- Check if status is blocked
+        local blocked_reason = job_state.get_status_blocked_reason()
+        if blocked_reason then
+            msg_wrapper("info", blocked_reason)
+            return blocked_reason
         end
 
-        if job_pending() then
-            local msg = "Job pending. Check status momentarily for progress..."
-            msg_wrapper("info", msg)
-            return msg
-        end
-
-        result = get_pretty_status_via_file_polling()
-
-        return result
+        -- Return formatted status
+        return fileio.get_pretty_status(file_paths)
     end
 
-
-    
     function self.abort()
-        local result = ""
-
-        -- Increment abort counter and run cleanup every 3rd abort ("pumped")
+        -- Increment abort counter and run cleanup every 3rd abort
         self.abort_counter = self.abort_counter + 1
         if self.abort_counter % 3 == 0 then
             msg_wrapper("dbg", "Abort pumped (count: " .. self.abort_counter .. "), running cleanup...")
             job_runner.cleanup_old_jobs(self.cleanup_age_seconds)
         end
 
-        if no_job_found() then
-            local msg = "No job to stop."
-            msg_wrapper("info", msg)
-            return msg
+        -- Check if abort is blocked
+        local blocked_reason = job_state.get_abort_blocked_reason()
+        if blocked_reason then
+            msg_wrapper("info", blocked_reason)
+            return blocked_reason
         end
 
-        if job_finished() then
-            local msg = "Job already finished. No need to stop."
-            msg_wrapper("info", msg)
-            return msg
-        end
-
-        if job_pending() then
-            local msg = "Job still pending. Try to stop again momentarily..."
-            msg_wrapper("info", msg)
-            return msg
-        end
-
-        result = get_pid_via_file_polling()
-
-        if result == "" then
+        -- Get PID and stop the job
+        local pid = fileio.read_pid(file_paths.pid)
+        if pid == "" then
             local msg = "No PID found. Cannot stop job."
             msg_wrapper("info", msg)
             return msg
         end
 
-        pid = result
         msg_wrapper("dbg", "PID found: " .. pid)
-        result = stop_job(pid, self.job_uuid)
+        executor.job_async_stop(pid, job_uuid)
 
-        result = "Job stopped..."
-
-        return result
+        return "Job stopped..."
     end
 
     return self
