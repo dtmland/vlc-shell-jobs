@@ -3,6 +3,9 @@ local executor = require("extensions.shell_execute")
 
 math.randomseed(os.time())
 
+-- Default cleanup age in seconds (1 day = 86400 seconds)
+local DEFAULT_CLEANUP_AGE_SECONDS = 86400
+
 local function generate_random_number()
     return tostring(math.random(10000, 99999))
 end
@@ -16,6 +19,42 @@ local function generate_uuid()
         return string.format("%x", v)
     end)
 end
+
+
+-- Function to clean up old job directories
+-- max_age_seconds: Maximum age in seconds before a job directory is considered old (default: 1 day)
+-- Returns: number of directories cleaned up
+function job_runner.cleanup_old_jobs(max_age_seconds)
+    max_age_seconds = max_age_seconds or DEFAULT_CLEANUP_AGE_SECONDS
+    
+    local cleaned_count = 0
+    local directories = executor.get_job_directories_with_ages()
+    
+    if not directories or #directories == 0 then
+        vlc.msg.dbg("Cleanup: No job directories found")
+        return 0
+    end
+    
+    vlc.msg.dbg("Cleanup: Found " .. #directories .. " job directories")
+    
+    for _, dir_info in ipairs(directories) do
+        if dir_info.age_seconds > max_age_seconds then
+            vlc.msg.dbg("Cleanup: Removing old job directory (age: " .. dir_info.age_seconds .. "s): " .. dir_info.name)
+            if executor.remove_job_directory(dir_info.name) then
+                cleaned_count = cleaned_count + 1
+            end
+        else
+            vlc.msg.dbg("Cleanup: Job directory still recent (age: " .. dir_info.age_seconds .. "s): " .. dir_info.name)
+        end
+    end
+    
+    if cleaned_count > 0 then
+        vlc.msg.info("Cleanup: Removed " .. cleaned_count .. " old job directories")
+    end
+    
+    return cleaned_count
+end
+
 
 function job_runner.job(command, command_directory)
     return executor.job(command, command_directory)
@@ -33,7 +72,9 @@ function job_runner.new()
         job_pid_file = nil,
         job_uuid = nil,
         stdout_file = nil,
-        stderr_file = nil
+        stderr_file = nil,
+        abort_counter = 0,
+        cleanup_age_seconds = DEFAULT_CLEANUP_AGE_SECONDS
     }
 
     local function msg_wrapper(level, message)
@@ -173,6 +214,14 @@ function job_runner.new()
     function self.set_internals_directory(path)
         self.internals_directory = path
         configure_paths()
+    end
+
+    function self.get_cleanup_age_seconds()
+        return self.cleanup_age_seconds
+    end
+
+    function self.set_cleanup_age_seconds(age_seconds)
+        self.cleanup_age_seconds = age_seconds or DEFAULT_CLEANUP_AGE_SECONDS
     end
 
     function self.get_stdout_file_path()
@@ -436,6 +485,13 @@ function job_runner.new()
     
     function self.abort()
         local result = ""
+
+        -- Increment abort counter and run cleanup every 3rd abort ("pumped")
+        self.abort_counter = self.abort_counter + 1
+        if self.abort_counter % 3 == 0 then
+            msg_wrapper("dbg", "Abort pumped (count: " .. self.abort_counter .. "), running cleanup...")
+            job_runner.cleanup_old_jobs(self.cleanup_age_seconds)
+        end
 
         if no_job_found() then
             local msg = "No job to stop."

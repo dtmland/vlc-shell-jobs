@@ -21,7 +21,7 @@ The utilities use a two-stage architecture to avoid complex batch escaping issue
    - The generated file can be manually run for troubleshooting
 
 3. **Generated runner batch** (e.g., `job_runner.bat`) - The actual execution script:
-   - Contains the PowerShell command in the exact format from `executor.lua`
+   - Contains the PowerShell command in the exact format from `shell_execute.lua`
    - Can be inspected and run manually for debugging
    - Cleaned up after execution (but can be preserved by commenting out cleanup)
 
@@ -33,7 +33,7 @@ The utilities use a two-stage architecture to avoid complex batch escaping issue
 
 Runs a command synchronously (blocking) and captures stdout/stderr separately.
 
-**Based on:** `executor.blocking_command()` from `executor.lua`
+**Based on:** `executor.blocking_command()` from `shell_execute.lua`
 
 **Usage:**
 ```batch
@@ -73,8 +73,8 @@ The script will display:
 Runs a command asynchronously in the background, polls for status, and displays ongoing output.
 
 **Based on:** 
-- `executor.run_cmd_job()` from `executor.lua`
-- Various polling functions from `job_runner.lua`
+- `executor.run_cmd_job()` from `shell_execute.lua`
+- Various polling functions from `shell_job.lua`
 
 **Usage:**
 ```batch
@@ -121,7 +121,7 @@ job_async_run.bat "ping -n 30 localhost && ping -n 30 localhost"
 
 Checks the status of a running async job by its UUID.
 
-**Based on:** Various polling functions from `job_runner.lua`
+**Based on:** Various polling functions from `shell_job.lua`
 
 **Usage:**
 ```batch
@@ -154,7 +154,7 @@ job_async_check.bat "78f734c4-496c-40d0-83f4-127d43e97195" 200
 
 Stops a running async job by its UUID.
 
-**Based on:** `executor.stop_job()` from `executor.lua`
+**Based on:** `executor.stop_job()` from `shell_execute.lua`
 
 **Usage:**
 ```batch
@@ -182,6 +182,41 @@ job_async_stop.bat "78f734c4-496c-40d0-83f4-127d43e97195"
 1. Run `job_async_run.bat` and note the Job UUID displayed
 2. Open a new command prompt
 3. Run `job_async_stop.bat "your-job-uuid"` to stop the job
+
+---
+
+### `job_cleanup.bat`
+
+Cleans up old job directories from the jobrunner folder.
+
+**Based on:** `job_runner.cleanup_old_jobs()` from `shell_job.lua`
+
+**Usage:**
+```batch
+job_cleanup.bat [max_age_seconds]
+```
+
+**Arguments:**
+- `max_age_seconds` - Maximum age in seconds before a job directory is considered old (optional, defaults to 86400 = 1 day)
+
+**Examples:**
+```batch
+REM Cleanup jobs older than 1 day (default)
+job_cleanup.bat
+
+REM Cleanup jobs older than 1 hour
+job_cleanup.bat 3600
+
+REM Cleanup jobs older than 1 week
+job_cleanup.bat 604800
+```
+
+**Features:**
+- Scans `%APPDATA%\jobrunner\` for job directories
+- Checks the directory's last modification time (not individual files)
+- Removes directories older than the specified age threshold
+- Reports which directories were removed vs kept
+- Safe to run at any time - does not affect running jobs that are still recent
 
 ---
 
@@ -232,7 +267,7 @@ PowerShell script that generates the `kill_tree_runner.bat` file. Called by `job
 
 Standalone PowerShell script that walks a process tree and kills processes matching a UUID.
 
-**Based on:** The Kill-Tree function from `executor.stop_job()` in `executor.lua`
+**Based on:** The Kill-Tree function from `executor.stop_job()` in `shell_execute.lua`
 
 **Usage:**
 ```powershell
@@ -243,7 +278,7 @@ powershell -File kill_tree.ps1 -ProcessId <pid> -MatchString "<uuid>"
 
 ---
 
-## How These Map to executor.lua
+## How These Map to shell_execute.lua
 
 ### blocking_command (job.bat)
 
@@ -255,7 +290,7 @@ The Lua code builds a PowerShell one-liner that:
 5. Determines success/failure via exit code markers
 
 ```lua
--- From executor.lua
+-- From shell_execute.lua
 one_liner = table.concat({
     "powershell -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -Command ",
     ...
@@ -270,7 +305,7 @@ one_liner = table.concat({
 The Lua code uses `start` command to launch a background process:
 
 ```lua
--- From executor.lua
+-- From shell_execute.lua
 background_command = table.concat({
     "start ",
     "\"",name,"\"",
@@ -288,7 +323,7 @@ The Lua code defines a Kill-Tree PowerShell function that:
 3. Only kills processes after finding a match (to avoid killing VLC itself)
 
 ```lua
--- From executor.lua
+-- From shell_execute.lua
 "function Kill-Tree { ",
     "param([int] $ppid, [string] $matchString, [bool] $matchFound = $false); ",
     ...
