@@ -45,20 +45,17 @@ function executor.job(command, command_directory)
         end
 
         -- Build a shell command that captures stdout and stderr separately
-        -- Uses a subshell to change directory and run the command
-        -- Prefixes each line with stdout: or stderr: for parsing
+        -- Uses temporary files to capture stdout and stderr independently
+        -- Then prefixes each line with stdout: or stderr: for parsing
+        local tmp_stdout = "/tmp/vlc_shell_job_stdout_$$"
+        local tmp_stderr = "/tmp/vlc_shell_job_stderr_$$"
         one_liner = table.concat({
             "sh -c '",
             "cd \"", command_directory, "\" && ",
-            "{ ", command, " && echo \"", success_designator, "\"; } 2>&1 | ",
-            "while IFS= read -r line; do ",
-            "  case \"$line\" in ",
-            "    \"", success_designator, "\") echo \"stdout: $line\" ;; ",
-            "    \"", failure_designator, "\") echo \"stdout: $line\" ;; ",
-            "    *) echo \"stdout: $line\" ;; ",
-            "  esac; ",
-            "done ",
-            "|| echo \"", failure_designator, "\"",
+            "( ", command, " > ", tmp_stdout, " 2> ", tmp_stderr, " && echo \"", success_designator, "\" >> ", tmp_stdout, " || echo \"", failure_designator, "\" >> ", tmp_stdout, " ); ",
+            "cat ", tmp_stdout, " | while IFS= read -r line; do echo \"stdout: $line\"; done; ",
+            "cat ", tmp_stderr, " | while IFS= read -r line; do echo \"stderr: $line\"; done; ",
+            "rm -f ", tmp_stdout, " ", tmp_stderr,
             "'"
         })
     end

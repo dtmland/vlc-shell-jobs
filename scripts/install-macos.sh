@@ -89,8 +89,9 @@ install_extension_with_icon() {
         local icon_content
         icon_content=$(cat "$icon_file")
         
-        # Add icon reference to descriptor (replace "capabilities = {}," with "capabilities = {},\n        icon = png_data,")
-        ext_content=$(echo "$ext_content" | sed 's/capabilities = {},/capabilities = {},\n        icon = png_data,/')
+        # Add icon reference to descriptor using printf for portable newline handling
+        # Replace "capabilities = {},\n        icon = png_data,"
+        ext_content=$(printf '%s' "$ext_content" | sed 's/capabilities = {},/capabilities = {},\'$'\n''        icon = png_data,/')
         
         # Append icon data at the end
         ext_content="${ext_content}

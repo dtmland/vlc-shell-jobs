@@ -86,6 +86,30 @@ Write-Host "Creating VLC directories..." -ForegroundColor White
 Ensure-Directory $ExtensionsDir
 Ensure-Directory $ModulesDir
 
+# Function to embed icon data into extension content
+function Get-ExtensionContentWithIcon {
+    param(
+        [string]$ExtensionFile,
+        [string]$IconDataFile
+    )
+    
+    $ExtContent = Get-Content -Path $ExtensionFile -Raw
+    
+    if (Test-Path $IconDataFile) {
+        $IconContent = Get-Content -Path $IconDataFile -Raw
+        
+        # Add icon reference to descriptor and append icon data
+        $ExtContent = $ExtContent -replace "(capabilities = \{\},)", "`$1`n        icon = png_data,"
+        $ExtContent = $ExtContent + "`n`n-- Icon data (embedded during installation)`n" + $IconContent
+        
+        Write-Host "  Embedding icon data..." -ForegroundColor Green
+    } else {
+        Write-Host "  WARNING: Icon data file not found, installing without icon" -ForegroundColor Yellow
+    }
+    
+    return $ExtContent
+}
+
 # Copy and patch main extension file with icon data
 Write-Host ""
 Write-Host "Installing extension file..." -ForegroundColor White
@@ -98,40 +122,12 @@ if (Test-Path $ExtensionFile) {
         if ($response -ne 'y' -and $response -ne 'Y') {
             Write-Host "  Skipping: shell_jobs.lua" -ForegroundColor Yellow
         } else {
-            # Read the extension file and icon data
-            $ExtContent = Get-Content -Path $ExtensionFile -Raw
-            
-            if (Test-Path $IconDataFile) {
-                $IconContent = Get-Content -Path $IconDataFile -Raw
-                
-                # Append icon data and add icon reference to descriptor
-                $ExtContent = $ExtContent -replace "(capabilities = \{\},)", "`$1`n        icon = png_data,"
-                $ExtContent = $ExtContent + "`n`n-- Icon data (embedded during installation)`n" + $IconContent
-                
-                Write-Host "  Embedding icon data..." -ForegroundColor Green
-            } else {
-                Write-Host "  WARNING: Icon data file not found, installing without icon" -ForegroundColor Yellow
-            }
-            
+            $ExtContent = Get-ExtensionContentWithIcon -ExtensionFile $ExtensionFile -IconDataFile $IconDataFile
             Set-Content -Path $DestFile -Value $ExtContent -NoNewline
             Write-Host "  Installed: shell_jobs.lua" -ForegroundColor Green
         }
     } else {
-        # Read the extension file and icon data
-        $ExtContent = Get-Content -Path $ExtensionFile -Raw
-        
-        if (Test-Path $IconDataFile) {
-            $IconContent = Get-Content -Path $IconDataFile -Raw
-            
-            # Append icon data and add icon reference to descriptor
-            $ExtContent = $ExtContent -replace "(capabilities = \{\},)", "`$1`n        icon = png_data,"
-            $ExtContent = $ExtContent + "`n`n-- Icon data (embedded during installation)`n" + $IconContent
-            
-            Write-Host "  Embedding icon data..." -ForegroundColor Green
-        } else {
-            Write-Host "  WARNING: Icon data file not found, installing without icon" -ForegroundColor Yellow
-        }
-        
+        $ExtContent = Get-ExtensionContentWithIcon -ExtensionFile $ExtensionFile -IconDataFile $IconDataFile
         Set-Content -Path $DestFile -Value $ExtContent -NoNewline
         Write-Host "  Installed: shell_jobs.lua" -ForegroundColor Green
     }
