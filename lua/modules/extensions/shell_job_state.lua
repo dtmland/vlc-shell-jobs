@@ -27,7 +27,10 @@ state.STATES = {
     SUCCESS = "SUCCESS",
     
     -- Job completed with failure (status file contains FAILURE)
-    FAILURE = "FAILURE"
+    FAILURE = "FAILURE",
+    
+    -- Job was stopped/aborted by user (status file contains STOPPED)
+    STOPPED = "STOPPED"
 }
 
 -- ============================================================================
@@ -66,6 +69,8 @@ function state.new(file_paths, expected_uuid, fileio_instance)
             return state.STATES.SUCCESS
         elseif status == defs.STATUS.FAILURE then
             return state.STATES.FAILURE
+        elseif status == defs.STATUS.STOPPED then
+            return state.STATES.STOPPED
         else
             -- Unknown status, treat as pending
             return state.STATES.PENDING
@@ -91,7 +96,7 @@ function state.new(file_paths, expected_uuid, fileio_instance)
     
     function self.is_finished()
         local s = self.get_state()
-        return s == state.STATES.SUCCESS or s == state.STATES.FAILURE
+        return s == state.STATES.SUCCESS or s == state.STATES.FAILURE or s == state.STATES.STOPPED
     end
     
     function self.is_success()
@@ -100,6 +105,10 @@ function state.new(file_paths, expected_uuid, fileio_instance)
     
     function self.is_failure()
         return self.get_state() == state.STATES.FAILURE
+    end
+    
+    function self.is_stopped()
+        return self.get_state() == state.STATES.STOPPED
     end
     
     -- Check if job is active (either pending or running)
@@ -114,10 +123,10 @@ function state.new(file_paths, expected_uuid, fileio_instance)
     -- These methods indicate whether specific actions are allowed in the current state
     
     -- Can we start a new job?
-    -- Only allowed if no job exists or previous job finished
+    -- Only allowed if no job exists or previous job finished (including stopped)
     function self.can_run()
         local s = self.get_state()
-        return s == state.STATES.NO_JOB or s == state.STATES.SUCCESS or s == state.STATES.FAILURE
+        return s == state.STATES.NO_JOB or s == state.STATES.SUCCESS or s == state.STATES.FAILURE or s == state.STATES.STOPPED
     end
     
     -- Can we check status?
@@ -163,6 +172,8 @@ function state.new(file_paths, expected_uuid, fileio_instance)
             return "No job to stop."
         elseif s == state.STATES.SUCCESS or s == state.STATES.FAILURE then
             return "Job already finished. No need to stop."
+        elseif s == state.STATES.STOPPED then
+            return "Job already stopped."
         elseif s == state.STATES.PENDING then
             return "Job still pending. Try to stop again momentarily..."
         end

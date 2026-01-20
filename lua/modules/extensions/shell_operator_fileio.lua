@@ -127,6 +127,15 @@ function fileio.new(open_fn, msg_fn)
         end
         return success
     end
+    
+    -- Write the job status
+    function self.write_status(status_file, status)
+        local success = write_file(status_file, status)
+        if not success then
+            msg_wrapper("dbg", "Failed to write status file: " .. status_file)
+        end
+        return success
+    end
 
     -- ========================================================================
     -- Public Interface: Safe Read (with default value)
