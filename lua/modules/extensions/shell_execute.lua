@@ -182,16 +182,20 @@ function executor.job_async_run(name, cmd_command, cmd_directory, pid_record, uu
         -- Run command in background using nohup and capture PID
         -- The command runs in a subshell that:
         -- 1. Sets status to RUNNING
-        -- 2. Runs the command with stdout/stderr redirected
-        -- 3. Sets status to SUCCESS or FAILURE based on exit code
-        -- 4. Records the background process PID
+        -- 2. Truncates stdout/stderr files immediately (so status shows correctly right away)
+        -- 3. Runs the command with stdout/stderr redirected
+        -- 4. Sets status to SUCCESS or FAILURE based on exit code
+        -- 5. Records the background process PID
+        -- Note: We use eval to properly handle semicolons and other shell metacharacters in cmd_command
         one_liner = table.concat({
             "sh -c '",
             status_running, " && ",
+            "> \"", stdout_file, "\" && ",  -- Truncate stdout file immediately
+            "> \"", stderr_file, "\" && ",  -- Truncate stderr file immediately
             "( ",
             "cd \"", cmd_directory, "\" && ",
-            cmd_command,
-            " > \"", stdout_file, "\" 2> \"", stderr_file, "\" && ",
+            "eval \"", cmd_command:gsub('"', '\\"'), "\"",  -- Use eval to properly handle semicolons
+            " >> \"", stdout_file, "\" 2>> \"", stderr_file, "\" && ",
             status_success, " || ", status_failure,
             " ) &",
             " echo $! > \"", pid_record, "\"",
