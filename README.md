@@ -13,35 +13,54 @@ This project provides a VLC extension (`shell_jobs.lua`) that allows you to exec
 
 ## Project Structure
 
+```
+vlc-shell-jobs/
+├── lua/
+│   ├── extensions/              # Main VLC extension entry point
+│   │   └── shell_jobs.lua       # Extension with GUI
+│   └── modules/
+│       └── extensions/          # Supporting modules (loaded by shell_jobs.lua)
+│           ├── dynamic_dialog.lua
+│           ├── shell_execute.lua
+│           ├── shell_job.lua
+│           ├── shell_job_defs.lua
+│           ├── shell_job_state.lua
+│           ├── shell_operator_fileio.lua
+│           └── tests/           # Lua module unit tests
+├── utils/
+│   └── win/                     # Windows batch file utilities
+│       ├── *.bat, *.ps1         # Utility scripts
+│       └── tests/               # Windows utility tests
+└── scripts/                     # Installation scripts
+```
+
 ### Core Lua Extension Files
 
-- **`shell_jobs.lua`** - Main VLC extension entry point with GUI
-- **`shell_execute.lua`** - Core command execution logic (blocking and async commands)
-- **`shell_job.lua`** - Job management and status tracking (orchestrates the modules below)
-- **`dynamic_dialog.lua`** - GUI management for the VLC extension dialog
+- **`lua/extensions/shell_jobs.lua`** - Main VLC extension entry point with GUI
 
-### Supporting Modules
+### Supporting Modules (`lua/modules/extensions/`)
 
 These modules provide clear separation of concerns and improve testability:
 
+- **`shell_execute.lua`** - Core command execution logic (blocking and async commands)
+- **`shell_job.lua`** - Job management and status tracking (orchestrates the modules below)
+- **`dynamic_dialog.lua`** - GUI management for the VLC extension dialog
 - **`shell_job_defs.lua`** - Shared constants and path utilities (acts like a C header file)
   - Job status constants (RUNNING, SUCCESS, FAILURE)
   - File name constants (job_status.txt, job_uuid.txt, etc.)
   - Platform-aware path building functions
-  
 - **`shell_operator_fileio.lua`** - File-based IPC operations
   - Reading/writing status, UUID, PID, stdout, stderr files
   - Abstracts file I/O from job logic
   - Enables future replacement with different IPC mechanisms
-  
 - **`shell_job_state.lua`** - State machine for job lifecycle
   - Clear state definitions (NO_JOB, PENDING, RUNNING, SUCCESS, FAILURE)
   - State query functions (is_running, is_finished, can_run, can_abort)
   - Human-readable blocking reason messages
 
-### Windows Utilities (`utils/`)
+### Windows Utilities (`utils/win/`)
 
-The `utils/` directory contains Windows batch file utilities that replicate the VLC extension's functionality for standalone use. These are useful for:
+The `utils/win/` directory contains Windows batch file utilities that replicate the VLC extension's functionality for standalone use. These are useful for:
 
 - **Development and debugging** - Test the shell/PowerShell logic outside of VLC
 - **Understanding the implementation** - See the exact commands without Lua escaping
@@ -53,39 +72,56 @@ The `utils/` directory contains Windows batch file utilities that replicate the 
 - `job_async_check.bat` - Check status of running jobs
 - `job_async_stop.bat` - Stop running jobs by UUID
 
-See [utils/README.md](utils/README.md) for detailed documentation.
+See [utils/win/README.md](utils/win/README.md) for detailed documentation.
 
-### Tests (`utils/tests/`)
+### Tests
 
-Comprehensive test suites for the Windows batch utilities, written in PowerShell with BAT wrappers for easy execution.
+- **`utils/win/tests/`** - Comprehensive test suites for the Windows batch utilities, written in PowerShell with BAT wrappers for easy execution. See [utils/win/tests/README.md](utils/win/tests/README.md).
 
-See [utils/tests/README.md](utils/tests/README.md) for detailed documentation.
-
-### Lua Module Tests (`tests/`)
-
-Unit tests for the Lua modules, designed to run standalone outside of VLC.
-
-See [tests/README.md](tests/README.md) for detailed documentation.
+- **`lua/modules/extensions/tests/`** - Unit tests for the Lua modules, designed to run standalone outside of VLC. See [lua/modules/extensions/tests/README.md](lua/modules/extensions/tests/README.md).
 
 ## Installation
 
-1. Copy the Lua extension files to your VLC extensions directory:
-   - `shell_jobs.lua`
-   - `shell_execute.lua`
-   - `shell_job.lua`
-   - `shell_job_defs.lua`
-   - `shell_operator_fileio.lua`
-   - `shell_job_state.lua`
-   - `dynamic_dialog.lua`
-   
-   VLC extension directories:
+### Quick Install (Recommended)
+
+Use the installation scripts in the `scripts/` directory:
+
+**Windows (PowerShell):**
+```powershell
+.\scripts\install-windows.ps1
+```
+
+**Linux (Bash):**
+```bash
+./scripts/install-linux.sh
+```
+
+**macOS (Bash):**
+```bash
+./scripts/install-macos.sh
+```
+
+### Manual Installation
+
+Copy the Lua files to your VLC directory structure:
+
+1. Copy `lua/extensions/shell_jobs.lua` to your VLC extensions directory:
    - **Windows**: `%APPDATA%\vlc\lua\extensions\`
    - **macOS**: `~/Library/Application Support/org.videolan.vlc/lua/extensions/`
    - **Linux**: `~/.local/share/vlc/lua/extensions/`
 
-2. Restart VLC
+2. Copy all files from `lua/modules/extensions/` (except `tests/`) to your VLC modules directory:
+   - **Windows**: `%APPDATA%\vlc\lua\modules\extensions\`
+   - **macOS**: `~/Library/Application Support/org.videolan.vlc/lua/modules/extensions/`
+   - **Linux**: `~/.local/share/vlc/lua/modules/extensions/`
 
-3. Access the extension via VLC menu: **View** → **Shell Jobs**
+3. Restart VLC
+
+4. Access the extension via VLC menu: **View** → **Shell Jobs**
+
+### VLC Directory Structure
+
+VLC uses a `Roaming` AppData directory on Windows (`%APPDATA%`) because user preferences and extensions should follow the user across different machines in a domain environment. This is standard Windows behavior for user-specific application data that isn't machine-dependent.
 
 ## Usage
 
@@ -98,20 +134,20 @@ See [tests/README.md](tests/README.md) for detailed documentation.
 
 ### Standalone (Windows)
 
-Use the batch file utilities in the `utils/` directory to run commands outside of VLC:
+Use the batch file utilities in the `utils/win/` directory to run commands outside of VLC:
 
 ```batch
 REM Run a command synchronously
-utils\job.bat "ping -n 5 localhost"
+utils\win\job.bat "ping -n 5 localhost"
 
 REM Run a command asynchronously
-utils\job_async_run.bat "ping -n 10 localhost" "C:\Windows" "MyPingTest"
+utils\win\job_async_run.bat "ping -n 10 localhost" "C:\Windows" "MyPingTest"
 
 REM Check job status (use UUID from previous command)
-utils\job_async_check.bat "78f734c4-496c-40d0-83f4-127d43e97195"
+utils\win\job_async_check.bat "78f734c4-496c-40d0-83f4-127d43e97195"
 
 REM Stop a running job
-utils\job_async_stop.bat "78f734c4-496c-40d0-83f4-127d43e97195"
+utils\win\job_async_stop.bat "78f734c4-496c-40d0-83f4-127d43e97195"
 ```
 
 ## Platform Support
@@ -137,17 +173,24 @@ For Windows commands, the executor builds PowerShell one-liners that:
 
 ## Development
 
-The Windows batch utilities in `utils/` are helpful for development:
+The Windows batch utilities in `utils/win/` are helpful for development:
 
 1. Test command execution logic without VLC
 2. Inspect generated batch files for debugging
 3. Understand the exact PowerShell commands being executed
 4. Verify command escaping and output handling
 
-To run tests:
+### Running Tests
 
+**Lua module tests:**
+```bash
+cd lua/modules/extensions/tests
+./run_lua_tests.sh
+```
+
+**Windows utility tests:**
 ```batch
-cd utils\tests
+cd utils\win\tests
 run_all_tests.bat
 ```
 

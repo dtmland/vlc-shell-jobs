@@ -2,18 +2,16 @@
 -- Tests for shell_job_defs.lua module
 
 -- Set up package path to find modules
-package.path = package.path .. ";../?.lua;./?.lua"
+-- Tests are in lua/modules/extensions/tests/, modules are in lua/modules/extensions/
+package.path = package.path .. ";./?.lua;../?.lua"
 
-local test_lib = require("tests.test_lib")
+local test_lib = require("test_lib")
 
 -- For testing, we need to set up the module path for extensions
 -- In the actual VLC environment, require("extensions.shell_job_defs") works
--- For standalone testing, we adjust the path
-package.path = package.path .. ";../?.lua"
-
--- Rename module for standalone testing (simulating extensions.shell_job_defs)
+-- For standalone testing, we load the module directly
 package.loaded["extensions.shell_job_defs"] = nil
-local defs = dofile("shell_job_defs.lua")
+local defs = dofile("../shell_job_defs.lua")
 
 -- ============================================================================
 -- Tests

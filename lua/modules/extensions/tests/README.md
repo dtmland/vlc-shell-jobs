@@ -16,17 +16,20 @@ This directory contains unit tests for the Lua modules in the VLC Shell Jobs ext
 
 ### Run All Tests
 
+From this directory (`lua/modules/extensions/tests/`):
+
 ```bash
 ./run_lua_tests.sh
 ```
 
 ### Run Individual Tests
 
+From this directory:
+
 ```bash
-cd /path/to/vlc-shell-jobs
-lua tests/test_shell_job_defs.lua
-lua tests/test_shell_operator_fileio.lua
-lua tests/test_shell_job_state.lua
+lua test_shell_job_defs.lua
+lua test_shell_operator_fileio.lua
+lua test_shell_job_state.lua
 ```
 
 ## Test Library

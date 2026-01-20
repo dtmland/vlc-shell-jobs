@@ -5,17 +5,18 @@
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_DIR="$(dirname "$SCRIPT_DIR")"
+MODULE_DIR="$(dirname "$SCRIPT_DIR")"
 
 echo "============================================================================"
 echo "LUA TEST RUNNER"
 echo "============================================================================"
 echo ""
 echo "Running Lua unit tests..."
-echo "Repository: $REPO_DIR"
+echo "Module directory: $MODULE_DIR"
+echo "Tests directory: $SCRIPT_DIR"
 echo ""
 
-cd "$REPO_DIR"
+cd "$SCRIPT_DIR"
 
 PASSED_COUNT=0
 FAILED_COUNT=0
@@ -28,7 +29,7 @@ echo "RUNNING: test_shell_job_defs.lua"
 echo "############################################################################"
 echo ""
 
-if lua tests/test_shell_job_defs.lua; then
+if lua test_shell_job_defs.lua; then
     PASSED_COUNT=$((PASSED_COUNT + 1))
     echo "[SUITE PASSED] test_shell_job_defs.lua"
 else
@@ -44,7 +45,7 @@ echo "RUNNING: test_shell_operator_fileio.lua"
 echo "############################################################################"
 echo ""
 
-if lua tests/test_shell_operator_fileio.lua; then
+if lua test_shell_operator_fileio.lua; then
     PASSED_COUNT=$((PASSED_COUNT + 1))
     echo "[SUITE PASSED] test_shell_operator_fileio.lua"
 else
@@ -60,7 +61,7 @@ echo "RUNNING: test_shell_job_state.lua"
 echo "############################################################################"
 echo ""
 
-if lua tests/test_shell_job_state.lua; then
+if lua test_shell_job_state.lua; then
     PASSED_COUNT=$((PASSED_COUNT + 1))
     echo "[SUITE PASSED] test_shell_job_state.lua"
 else

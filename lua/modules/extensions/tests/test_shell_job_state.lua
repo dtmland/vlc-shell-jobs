@@ -2,14 +2,15 @@
 -- Tests for shell_job_state.lua module
 
 -- Set up package path to find modules
-package.path = package.path .. ";../?.lua;./?.lua"
+-- Tests are in lua/modules/extensions/tests/, modules are in lua/modules/extensions/
+package.path = package.path .. ";./?.lua;../?.lua"
 
-local test_lib = require("tests.test_lib")
+local test_lib = require("test_lib")
 
 -- Load the modules - simulate the VLC extensions path
-package.loaded["extensions.shell_job_defs"] = dofile("shell_job_defs.lua")
-package.loaded["extensions.shell_operator_fileio"] = dofile("shell_operator_fileio.lua")
-local state_module = dofile("shell_job_state.lua")
+package.loaded["extensions.shell_job_defs"] = dofile("../shell_job_defs.lua")
+package.loaded["extensions.shell_operator_fileio"] = dofile("../shell_operator_fileio.lua")
+local state_module = dofile("../shell_job_state.lua")
 
 -- ============================================================================
 -- Test Setup
