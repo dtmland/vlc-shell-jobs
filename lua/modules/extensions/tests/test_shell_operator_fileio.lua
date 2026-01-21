@@ -2,13 +2,14 @@
 -- Tests for shell_operator_fileio.lua module
 
 -- Set up package path to find modules
-package.path = package.path .. ";../?.lua;./?.lua"
+-- Tests are in lua/modules/extensions/tests/, modules are in lua/modules/extensions/
+package.path = package.path .. ";./?.lua;../?.lua"
 
-local test_lib = require("tests.test_lib")
+local test_lib = require("test_lib")
 
 -- Load the modules
-package.loaded["extensions.shell_job_defs"] = dofile("shell_job_defs.lua")
-local fileio_module = dofile("shell_operator_fileio.lua")
+package.loaded["extensions.shell_job_defs"] = dofile("../shell_job_defs.lua")
+local fileio_module = dofile("../shell_operator_fileio.lua")
 
 -- ============================================================================
 -- Test Setup

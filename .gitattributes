@@ -1,0 +1,14 @@
+# Ensure Unix line endings for shell scripts
+*.sh text eol=lf
+
+# Ensure Windows line endings for batch files
+*.bat text eol=crlf
+
+# PowerShell can handle both but CRLF is standard for Windows
+*.ps1 text eol=crlf
+
+# Lua files are cross-platform, use LF
+*.lua text eol=lf
+
+# Python scripts use LF
+*.py text eol=lf

@@ -3,6 +3,7 @@ local GuiManager = require("extensions.dynamic_dialog")
 
 local runner_instance
 local gui_manager
+local dlg
 
 function descriptor()
     return {
@@ -40,48 +41,8 @@ function descriptor()
             for example, ffmpeg.
             ]],
         capabilities = {},
-        icon = png_data,
     }
 end
-
-local output_html
-
-local GUI_COL_1 = 1
-local GUI_COL_2 = 2
-local GUI_COL_3 = 3
-local GUI_COL_4 = 4
-local GUI_COL_5 = 5
-local GUI_COL_6 = 6
-local GUI_COL_7 = 7
-local GUI_COL_8 = 8
-local GUI_COL_9 = 9
-local GUI_COL_10 = 10
-
-local GUI_ROW_1 = 1
-local GUI_ROW_2 = 2
-local GUI_ROW_3 = 3
-local GUI_ROW_4 = 4
-local GUI_ROW_5 = 5
-local GUI_ROW_6 = 6
-local GUI_ROW_7 = 7
-local GUI_ROW_8 = 8
-local GUI_ROW_9 = 9
-local GUI_ROW_10 = 10
-local GUI_ROW_25 = 25
-
-local MIN_HEIGHT = 10
-local MAX_HEIGHT = 50
-local MIN_WIDTH = 20
-local MAX_WIDTH = 200
-
-local height_in_chars = MIN_HEIGHT
-local width_in_chars = MIN_WIDTH
-local jump_amount_height = 10
-local jump_amount_width = 20
-local pipe_labels = {} -- Array to store pipe label widgets
-local underscore_label -- Variable to store the underscore label widget
-local start_message = "Click 'Run' when ready. Click 'Refresh' to check run status"
-local relevant_message = start_message
 
 function activate()
 
@@ -162,5 +123,3 @@ function right_button_handler()
     gui_manager:adjust_width(gui_manager.jump_amount_width)
     gui_manager:redraw_gui(4, 4)
 end
-
-

@@ -12,7 +12,8 @@ local defs = {}
 defs.STATUS = {
     RUNNING = "RUNNING",
     SUCCESS = "SUCCESS",
-    FAILURE = "FAILURE"
+    FAILURE = "FAILURE",
+    STOPPED = "STOPPED"
 }
 
 -- ============================================================================

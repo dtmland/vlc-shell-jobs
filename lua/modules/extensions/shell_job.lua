@@ -329,6 +329,11 @@ function job_runner.new()
         msg_wrapper("dbg", "PID found: " .. pid)
         executor.job_async_stop(pid, job_uuid)
 
+        -- Update status to STOPPED so the state machine knows the job was aborted
+        -- This is necessary because the background process is killed before it can
+        -- update the status file to SUCCESS or FAILURE
+        fileio.write_status(file_paths.status, defs.STATUS.STOPPED)
+
         return "Job stopped..."
     end
 
