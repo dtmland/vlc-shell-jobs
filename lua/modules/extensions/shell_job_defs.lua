@@ -3,6 +3,8 @@
 -- This acts as a "header file" containing constants and path patterns
 -- that are shared between shell_job.lua, shell_execute.lua, and shell_operator_fileio.lua
 
+local os_detect = require("extensions.os_detect")
+
 local defs = {}
 
 -- ============================================================================
@@ -40,19 +42,9 @@ defs.DEFAULTS = {
 -- Path Utilities
 -- ============================================================================
 
--- Detect if running on Windows
-function defs.is_windows()
-    return package.config:sub(1,1) == '\\'
-end
-
--- Get the path separator for the current platform
-function defs.get_path_separator()
-    if defs.is_windows() then
-        return '\\'
-    else
-        return '/'
-    end
-end
+-- Re-export OS detection functions for backwards compatibility
+defs.is_windows = os_detect.is_windows
+defs.get_path_separator = os_detect.get_path_separator
 
 -- Join path components with the appropriate separator
 function defs.join_path(...)

@@ -21,6 +21,7 @@ vlc-shell-jobs/
 │   └── modules/
 │       └── extensions/          # Supporting modules (loaded by shell_jobs.lua)
 │           ├── dynamic_dialog.lua
+│           ├── os_detect.lua
 │           ├── shell_execute.lua
 │           ├── shell_job.lua
 │           ├── shell_job_defs.lua
@@ -31,7 +32,7 @@ vlc-shell-jobs/
 │   └── win/                     # Windows batch file utilities
 │       ├── *.bat, *.ps1         # Utility scripts
 │       └── tests/               # Windows utility tests
-└── scripts/                     # Installation scripts
+└── scripts/                     # Setup scripts
 ```
 
 ### Core Lua Extension Files
@@ -42,6 +43,10 @@ vlc-shell-jobs/
 
 These modules provide clear separation of concerns and improve testability:
 
+- **`os_detect.lua`** - OS detection utilities
+  - Platform detection (is_windows, is_macos, is_linux, is_unix)
+  - Cached detection results for performance
+  - Path separator helpers
 - **`shell_execute.lua`** - Core command execution logic (blocking and async commands)
 - **`shell_job.lua`** - Job management and status tracking (orchestrates the modules below)
 - **`dynamic_dialog.lua`** - GUI management for the VLC extension dialog
@@ -84,21 +89,21 @@ See [utils/win/README.md](utils/win/README.md) for detailed documentation.
 
 ### Quick Install (Recommended)
 
-Use the installation scripts in the `scripts/` directory:
+Use the setup scripts in the `scripts/` directory:
 
 **Windows (PowerShell):**
 ```powershell
-.\scripts\install-windows.ps1
+.\scripts\setup-windows.ps1
 ```
 
 **Linux (Bash):**
 ```bash
-./scripts/install-linux.sh
+./scripts/setup-linux.sh
 ```
 
 **macOS (Bash):**
 ```bash
-./scripts/install-macos.sh
+./scripts/setup-macos.sh
 ```
 
 ### Manual Installation

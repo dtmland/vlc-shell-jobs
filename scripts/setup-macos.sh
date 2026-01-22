@@ -183,6 +183,7 @@ echo ""
 echo "Installing module files..."
 MODULE_FILES=(
     "dynamic_dialog.lua"
+    "os_detect.lua"
     "shell_execute.lua"
     "shell_job.lua"
     "shell_job_defs.lua"

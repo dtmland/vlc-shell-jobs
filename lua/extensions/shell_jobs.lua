@@ -1,4 +1,5 @@
 local job_runner = require("extensions.shell_job")
+local os_detect = require("extensions.os_detect")
 
 local runner_instance
 
@@ -47,7 +48,7 @@ function activate()
     -- Sample command to ping localhost 10 times
     local description = "Ping localhost"
     local command
-    if package.config:sub(1,1) == '\\' then
+    if os_detect.is_windows() then
         -- Windows
         command = "ping -n 5 localhost ^&^& ping -n 5 localhost ^&^& ping -n 5 localhost"
     else
@@ -65,46 +66,39 @@ function deactivate()
     vlc.msg.info("Job Runner deactivated")
 end
 
+-- Add macOS-specific GUI workaround elements
+-- macOS VLC has layout quirks that require padding elements for proper display
+local function add_macos_gui_padding(dialog)
+    vlc.msg.info("Applying macOS GUI layout workaround")
+    dialog:add_button("________________________________________", empty_handler, 4, 1, 1, 1)
+    dialog:add_button("|", empty_handler, 5, 1, 1, 1)
+    dialog:add_button("|", empty_handler, 5, 2, 1, 1)
+    dialog:add_button("|", empty_handler, 5, 3, 1, 1)
+    dialog:add_button("|", empty_handler, 5, 4, 1, 1)
+    dialog:add_button("|", empty_handler, 5, 5, 1, 1)
+    dialog:add_button("|", empty_handler, 5, 6, 1, 1)
+    dialog:add_button("|", empty_handler, 5, 7, 1, 1)
+end
+
 function create_dialog()
     dlg = vlc.dialog("Job Runner")
     dlg:add_button("Run Job", run_button_handler,          1, 1, 1, 1)
     dlg:add_button("Check Status", refresh_button_handler, 2, 1, 1, 1)
     dlg:add_button("Abort Job", abort_button_handler,      3, 1, 1, 1)
 
-    -- Platform detection: Windows via package.config; on Unix try uname -s to detect macOS (Darwin).
-    local is_windows = package.config:sub(1,1) == '\\'
-    local is_macos = false
-    if not is_windows then
-        local ok, uname = pcall(function()
-            local f = io.popen("uname -s")
-            if f then
-                local s = f:read("*l")
-                f:close()
-                return s
-            end
-            return nil
-        end)
-        if ok and uname and uname:match("Darwin") then
-            is_macos = true
-        end
-    end
-
-    if is_macos then
-        vlc.msg.info("Only print in macos unix")
-
-        dlg:add_button("________________________________________", empty_handler, 4, 1, 1, 1)
-        dlg:add_button("|", empty_handler, 5, 1, 1, 1)
-        dlg:add_button("|", empty_handler, 5, 2, 1, 1)
-        dlg:add_button("|", empty_handler, 5, 3, 1, 1)
-        dlg:add_button("|", empty_handler, 5, 4, 1, 1)
-        dlg:add_button("|", empty_handler, 5, 5, 1, 1)
-        dlg:add_button("|", empty_handler, 5, 6, 1, 1)
-        dlg:add_button("|", empty_handler, 5, 7, 1, 1)
-
-        html_object = dlg:add_html("Click 'Run' when ready. Click 'Refresh' to check run status", 1, 4, 4, 4)
+    -- Determine HTML widget position and size based on platform
+    local html_col, html_row, html_colspan, html_rowspan
+    if os_detect.is_macos() then
+        add_macos_gui_padding(dlg)
+        html_col, html_row, html_colspan, html_rowspan = 1, 4, 4, 4
     else
-        html_object = dlg:add_html("Click 'Run' when ready. Click 'Refresh' to check run status", 1, 2, 50, 50)
+        html_col, html_row, html_colspan, html_rowspan = 1, 2, 50, 50
     end
+
+    html_object = dlg:add_html(
+        "Click 'Run' when ready. Click 'Refresh' to check run status",
+        html_col, html_row, html_colspan, html_rowspan
+    )
 end
 
 function empty_handler()
