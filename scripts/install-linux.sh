@@ -46,66 +46,104 @@ echo "Source repository: $REPO_DIR"
 echo "VLC base directory: $VLC_BASE_DIR"
 echo ""
 
-# Function to copy file with optional overwrite confirmation
+# Helper: compare two files using checksum if available, otherwise fall back to cmp
+files_identical() {
+    local a="$1" b="$2"
+    if command -v sha256sum >/dev/null 2>&1; then
+        [ "$(sha256sum "$a" | awk '{print $1}')" = "$(sha256sum "$b" | awk '{print $1}')" ]
+        return
+    elif command -v shasum >/dev/null 2>&1; then
+        [ "$(shasum -a 256 "$a" | awk '{print $1}')" = "$(shasum -a 256 "$b" | awk '{print $1}')" ]
+        return
+    elif command -v md5sum >/dev/null 2>&1; then
+        [ "$(md5sum "$a" | awk '{print $1}')" = "$(md5sum "$b" | awk '{print $1}')" ]
+        return
+    else
+        cmp -s "$a" "$b"
+        return
+    fi
+}
+
+# Replace copy_file_with_prompt: skip if identical, otherwise prompt (unless FORCE)
 copy_file_with_prompt() {
     local source="$1"
     local dest="$2"
     local filename=$(basename "$source")
-    
-    if [ -f "$dest" ] && [ "$FORCE" = false ]; then
-        read -p "File '$filename' already exists at destination. Overwrite? (y/N) " response
-        if [ "$response" != "y" ] && [ "$response" != "Y" ]; then
-            echo -e "  ${YELLOW}Skipping: $filename${NC}"
-            return 1
+
+    if [ -f "$dest" ]; then
+        if files_identical "$source" "$dest"; then
+            echo -e "  ${GREEN}Up-to-date, skipping: $filename${NC}"
+            return 0
+        fi
+
+        if [ "$FORCE" = false ]; then
+            read -p "File '$filename' already exists at destination. Overwrite? (y/N) " response
+            if [ "$response" != "y" ] && [ "$response" != "Y" ]; then
+                echo -e "  ${YELLOW}Skipping: $filename${NC}"
+                return 1
+            fi
         fi
     fi
-    
+
     cp "$source" "$dest"
     echo -e "  ${GREEN}Copied: $filename${NC}"
     return 0
 }
 
-# Function to install shell_jobs.lua with embedded icon
+# Replace install_extension_with_icon: build final content in a temp file, compare, then write/move
 install_extension_with_icon() {
     local source="$1"
     local dest="$2"
     local icon_file="$3"
     local filename=$(basename "$source")
-    
-    if [ -f "$dest" ] && [ "$FORCE" = false ]; then
-        read -p "File '$filename' already exists at destination. Overwrite? (y/N) " response
-        if [ "$response" != "y" ] && [ "$response" != "Y" ]; then
-            echo -e "  ${YELLOW}Skipping: $filename${NC}"
-            return 1
-        fi
-    fi
-    
+
     # Read the extension file content
     local ext_content
     ext_content=$(cat "$source")
-    
-    # Check if icon file exists
+
+    # Check if icon file exists and embed if present
     if [ -f "$icon_file" ]; then
         local icon_content
         icon_content=$(cat "$icon_file")
-        
+
         # Add icon reference to descriptor using printf for portable newline handling
         # Replace "capabilities = {}," with "capabilities = {},\n        icon = png_data,"
         ext_content=$(printf '%s' "$ext_content" | sed 's/capabilities = {},/capabilities = {},\'$'\n''        icon = png_data,/')
-        
+
         # Append icon data at the end
         ext_content="${ext_content}
 
 -- Icon data (embedded during installation)
 ${icon_content}"
-        
+
         echo -e "  ${GREEN}Embedding icon data...${NC}"
     else
         echo -e "  ${YELLOW}WARNING: Icon data file not found, installing without icon${NC}"
     fi
-    
-    # Write the combined content to destination
-    echo "$ext_content" > "$dest"
+
+    # Write generated content to a temp file for comparison/atomic install
+    local tmp
+    tmp=$(mktemp) || { echo -e "  ${RED}ERROR: could not create temp file${NC}"; return 1; }
+    printf '%s' "$ext_content" > "$tmp"
+
+    if [ -f "$dest" ]; then
+        if files_identical "$tmp" "$dest"; then
+            echo -e "  ${GREEN}Up-to-date, skipping: $filename${NC}"
+            rm -f "$tmp"
+            return 0
+        fi
+
+        if [ "$FORCE" = false ]; then
+            read -p "File '$filename' already exists at destination. Overwrite? (y/N) " response
+            if [ "$response" != "y" ] && [ "$response" != "Y" ]; then
+                echo -e "  ${YELLOW}Skipping: $filename${NC}"
+                rm -f "$tmp"
+                return 1
+            fi
+        fi
+    fi
+
+    mv "$tmp" "$dest"
     echo -e "  ${GREEN}Installed: $filename${NC}"
     return 0
 }

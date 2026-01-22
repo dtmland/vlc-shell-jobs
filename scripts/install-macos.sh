@@ -46,17 +46,57 @@ echo "Source repository: $REPO_DIR"
 echo "VLC base directory: $VLC_BASE_DIR"
 echo ""
 
-# Function to copy file with optional overwrite confirmation
+# Hash helpers: compute SHA-256 for a file or for text content (uses shasum/sha256sum/openssl)
+compute_hash_file() {
+    local file="$1"
+    if command -v shasum >/dev/null 2>&1; then
+        shasum -a 256 "$file" | awk '{print $1}'
+    elif command -v sha256sum >/dev/null 2>&1; then
+        sha256sum "$file" | awk '{print $1}'
+    elif command -v openssl >/dev/null 2>&1; then
+        openssl dgst -sha256 "$file" | awk '{print $2}'
+    else
+        # Fallback to a simple checksum (less ideal) if none available
+        md5 -q "$file"
+    fi
+}
+
+compute_hash_content() {
+    local content="$1"
+    if command -v shasum >/dev/null 2>&1; then
+        printf '%s' "$content" | shasum -a 256 | awk '{print $1}'
+    elif command -v sha256sum >/dev/null 2>&1; then
+        printf '%s' "$content" | sha256sum | awk '{print $1}'
+    elif command -v openssl >/dev/null 2>&1; then
+        printf '%s' "$content" | openssl dgst -sha256 | awk '{print $2}'
+    else
+        printf '%s' "$content" | md5
+    fi
+}
+
+# Function to copy file with optional overwrite confirmation and hash comparison
 copy_file_with_prompt() {
     local source="$1"
     local dest="$2"
     local filename=$(basename "$source")
     
-    if [ -f "$dest" ] && [ "$FORCE" = false ]; then
-        read -p "File '$filename' already exists at destination. Overwrite? (y/N) " response
-        if [ "$response" != "y" ] && [ "$response" != "Y" ]; then
-            echo -e "  ${YELLOW}Skipping: $filename${NC}"
-            return 1
+    if [ -f "$dest" ]; then
+        # If files are identical by hash, skip silently (or inform)
+        local src_hash
+        local dest_hash
+        src_hash=$(compute_hash_file "$source")
+        dest_hash=$(compute_hash_file "$dest")
+        if [ "$src_hash" = "$dest_hash" ]; then
+            echo -e "  ${YELLOW}Skipping identical file: $filename${NC}"
+            return 0
+        fi
+
+        if [ "$FORCE" = false ]; then
+            read -p "File '$filename' already exists at destination. Overwrite? (y/N) " response
+            if [ "$response" != "y" ] && [ "$response" != "Y" ]; then
+                echo -e "  ${YELLOW}Skipping: $filename${NC}"
+                return 1
+            fi
         fi
     fi
     
@@ -72,25 +112,16 @@ install_extension_with_icon() {
     local icon_file="$3"
     local filename=$(basename "$source")
     
-    if [ -f "$dest" ] && [ "$FORCE" = false ]; then
-        read -p "File '$filename' already exists at destination. Overwrite? (y/N) " response
-        if [ "$response" != "y" ] && [ "$response" != "Y" ]; then
-            echo -e "  ${YELLOW}Skipping: $filename${NC}"
-            return 1
-        fi
-    fi
-    
     # Read the extension file content
     local ext_content
     ext_content=$(cat "$source")
     
-    # Check if icon file exists
+    # Check if icon file exists and embed if present
     if [ -f "$icon_file" ]; then
         local icon_content
         icon_content=$(cat "$icon_file")
         
         # Add icon reference to descriptor using printf for portable newline handling
-        # Replace "capabilities = {},\n        icon = png_data,"
         ext_content=$(printf '%s' "$ext_content" | sed 's/capabilities = {},/capabilities = {},\'$'\n''        icon = png_data,/')
         
         # Append icon data at the end
@@ -103,9 +134,29 @@ ${icon_content}"
     else
         echo -e "  ${YELLOW}WARNING: Icon data file not found, installing without icon${NC}"
     fi
+
+    # If destination exists, compare hashes of the final content vs destination
+    if [ -f "$dest" ]; then
+        local new_hash
+        local dest_hash
+        new_hash=$(compute_hash_content "$ext_content")
+        dest_hash=$(compute_hash_file "$dest")
+        if [ "$new_hash" = "$dest_hash" ]; then
+            echo -e "  ${YELLOW}Skipping identical extension (embedded) : $filename${NC}"
+            return 0
+        fi
+
+        if [ "$FORCE" = false ]; then
+            read -p "File '$filename' already exists at destination. Overwrite? (y/N) " response
+            if [ "$response" != "y" ] && [ "$response" != "Y" ]; then
+                echo -e "  ${YELLOW}Skipping: $filename${NC}"
+                return 1
+            fi
+        fi
+    fi
     
     # Write the combined content to destination
-    echo "$ext_content" > "$dest"
+    printf '%s' "$ext_content" > "$dest"
     echo -e "  ${GREEN}Installed: $filename${NC}"
     return 0
 }
