@@ -15,10 +15,10 @@
     Overwrite existing files without prompting.
 
 .EXAMPLE
-    .\install-windows.ps1
+    .\setup-windows.ps1
     
 .EXAMPLE
-    .\install-windows.ps1 -Force
+    .\setup-windows.ps1 -Force
 #>
 
 param(

@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 #
-# VLC Shell Jobs - Linux Installer
+# VLC Shell Jobs - Linux Setup
 #
 # Installs the VLC Shell Jobs extension to the correct VLC directories on Linux.
 # Embeds the icon data into the installed shell_jobs.lua file.
 #
 # Usage:
-#   ./install-linux.sh          # Interactive mode (prompts for overwrites)
-#   ./install-linux.sh --force  # Force overwrite without prompting
+#   ./setup-linux.sh          # Interactive mode (prompts for overwrites)
+#   ./setup-linux.sh --force  # Force overwrite without prompting
 #
 
 set -e

@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 #
-# VLC Shell Jobs - macOS Installer
+# VLC Shell Jobs - macOS Setup
 #
 # Installs the VLC Shell Jobs extension to the correct VLC directories on macOS.
 # Embeds the icon data into the installed shell_jobs.lua file.
 #
 # Usage:
-#   ./install-macos.sh          # Interactive mode (prompts for overwrites)
-#   ./install-macos.sh --force  # Force overwrite without prompting
+#   ./setup-macos.sh          # Interactive mode (prompts for overwrites)
+#   ./setup-macos.sh --force  # Force overwrite without prompting
 #
 
 set -e
