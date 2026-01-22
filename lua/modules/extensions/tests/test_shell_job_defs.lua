@@ -10,6 +10,10 @@ local test_lib = require("test_lib")
 -- For testing, we need to set up the module path for extensions
 -- In the actual VLC environment, require("extensions.shell_job_defs") works
 -- For standalone testing, we load the module directly
+
+-- First preload os_detect which is a dependency of shell_job_defs
+package.loaded["extensions.os_detect"] = dofile("../os_detect.lua")
+
 package.loaded["extensions.shell_job_defs"] = nil
 local defs = dofile("../shell_job_defs.lua")
 

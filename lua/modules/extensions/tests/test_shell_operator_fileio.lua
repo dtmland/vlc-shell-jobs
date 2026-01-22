@@ -7,7 +7,8 @@ package.path = package.path .. ";./?.lua;../?.lua"
 
 local test_lib = require("test_lib")
 
--- Load the modules
+-- Load the modules - first preload os_detect which is a dependency
+package.loaded["extensions.os_detect"] = dofile("../os_detect.lua")
 package.loaded["extensions.shell_job_defs"] = dofile("../shell_job_defs.lua")
 local fileio_module = dofile("../shell_operator_fileio.lua")
 

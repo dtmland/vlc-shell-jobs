@@ -15,10 +15,10 @@
     Overwrite existing files without prompting.
 
 .EXAMPLE
-    .\install-windows.ps1
+    .\setup-windows.ps1
     
 .EXAMPLE
-    .\install-windows.ps1 -Force
+    .\setup-windows.ps1 -Force
 #>
 
 param(
@@ -192,6 +192,7 @@ Write-Host ""
 Write-Host "Installing module files..." -ForegroundColor White
 $ModuleFiles = @(
     "dynamic_dialog.lua",
+    "os_detect.lua",
     "shell_execute.lua",
     "shell_job.lua",
     "shell_job_defs.lua",

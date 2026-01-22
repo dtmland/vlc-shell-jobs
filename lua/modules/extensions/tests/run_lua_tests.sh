@@ -22,6 +22,22 @@ PASSED_COUNT=0
 FAILED_COUNT=0
 FAILED_TESTS=""
 
+# Run test_os_detect.lua
+echo ""
+echo "############################################################################"
+echo "RUNNING: test_os_detect.lua"
+echo "############################################################################"
+echo ""
+
+if lua test_os_detect.lua; then
+    PASSED_COUNT=$((PASSED_COUNT + 1))
+    echo "[SUITE PASSED] test_os_detect.lua"
+else
+    FAILED_COUNT=$((FAILED_COUNT + 1))
+    FAILED_TESTS="$FAILED_TESTS test_os_detect.lua"
+    echo "[SUITE FAILED] test_os_detect.lua"
+fi
+
 # Run test_shell_job_defs.lua
 echo ""
 echo "############################################################################"
