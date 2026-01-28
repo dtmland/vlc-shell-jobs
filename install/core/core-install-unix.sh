@@ -14,7 +14,11 @@
 #   --vlc-extensions-subdir: VLC extensions subdirectory (e.g., "extensions")
 #   --vlc-modules-subdir: VLC modules subdirectory (e.g., "modules/extensions")
 #
-# Optional flags:
+# Optional parameters:
+#   --source-repo: Source repository directory containing extension files. If not
+#                  specified, defaults to the parent of the parent of this script's
+#                  directory. Use this when calling from another repository that wants
+#                  to reuse this installer (e.g., when vlc-shell-jobs is a submodule).
 #   --force, -f: Force overwrite without prompting
 #
 # Usage:
@@ -28,6 +32,17 @@
 #     --vlc-modules-subdir "modules/extensions" \
 #     --force
 #
+# Usage (from another repository using vlc-shell-jobs as submodule):
+#   /path/to/vlc-shell-jobs/install/core/core-install-unix.sh \
+#     --source-repo "/path/to/vlc-detective" \
+#     --platform "linux" \
+#     --extension-name "detective.lua" \
+#     --extension-display-name "VLC Detective" \
+#     --module-files "" \
+#     --icon-file "" \
+#     --vlc-extensions-subdir "extensions" \
+#     --vlc-modules-subdir "modules/extensions"
+#
 
 set -e
 
@@ -40,6 +55,7 @@ MODULE_FILES=""
 ICON_FILE=""
 VLC_EXTENSIONS_SUBDIR=""
 VLC_MODULES_SUBDIR=""
+SOURCE_REPO=""
 
 while [ $# -gt 0 ]; do
     case $1 in
@@ -73,6 +89,10 @@ while [ $# -gt 0 ]; do
             ;;
         --vlc-modules-subdir)
             VLC_MODULES_SUBDIR="$2"
+            shift 2
+            ;;
+        --source-repo)
+            SOURCE_REPO="$2"
             shift 2
             ;;
         *)
@@ -110,7 +130,17 @@ fi
 
 # Get the script directory (where this script is located) - POSIX compatible
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-REPO_DIR="$(dirname "$(dirname "$SCRIPT_DIR")")"
+
+# Set REPO_DIR: use --source-repo if provided, otherwise default to parent of parent of script dir
+if [ -n "$SOURCE_REPO" ]; then
+    if [ ! -d "$SOURCE_REPO" ]; then
+        echo "Error: Source repository path does not exist or is not a directory: $SOURCE_REPO"
+        exit 1
+    fi
+    REPO_DIR="$SOURCE_REPO"
+else
+    REPO_DIR="$(dirname "$(dirname "$SCRIPT_DIR")")"
+fi
 
 # Set VLC base directory based on platform
 if [ "$PLATFORM" = "linux" ]; then
