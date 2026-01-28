@@ -90,6 +90,10 @@ $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 
 # Set RepoDir: use -SourceRepo if provided, otherwise default to parent of parent of script dir
 if ($SourceRepo) {
+    if (-not (Test-Path $SourceRepo -PathType Container)) {
+        Write-Host "Error: Source repository path does not exist or is not a directory: $SourceRepo" -ForegroundColor Red
+        exit 1
+    }
     $RepoDir = $SourceRepo
 } else {
     $RepoDir = Split-Path -Parent (Split-Path -Parent $ScriptDir)

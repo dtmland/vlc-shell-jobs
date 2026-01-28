@@ -133,6 +133,10 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 # Set REPO_DIR: use --source-repo if provided, otherwise default to parent of parent of script dir
 if [ -n "$SOURCE_REPO" ]; then
+    if [ ! -d "$SOURCE_REPO" ]; then
+        echo "Error: Source repository path does not exist or is not a directory: $SOURCE_REPO"
+        exit 1
+    fi
     REPO_DIR="$SOURCE_REPO"
 else
     REPO_DIR="$(dirname "$(dirname "$SCRIPT_DIR")")"
