@@ -29,6 +29,12 @@
 .PARAMETER VlcModulesSubdir
     VLC modules subdirectory (e.g., "modules\extensions")
 
+.PARAMETER SourceRepo
+    Source repository directory containing extension files. If not specified,
+    defaults to the parent of the parent of this script's directory. Use this
+    when calling from another repository that wants to reuse this installer
+    (e.g., when vlc-shell-jobs is a submodule).
+
 .PARAMETER Force
     Overwrite existing files without prompting.
 
@@ -41,6 +47,15 @@
         -VlcExtensionsSubdir "extensions" `
         -VlcModulesSubdir "modules\extensions" `
         -Force
+
+.EXAMPLE
+    # From another repository using vlc-shell-jobs as submodule:
+    & "C:\path\to\vlc-shell-jobs\install\core\core-install-windows.ps1" `
+        -SourceRepo "C:\path\to\vlc-detective" `
+        -ExtensionName "detective.lua" `
+        -ExtensionDisplayName "VLC Detective" `
+        -VlcExtensionsSubdir "extensions" `
+        -VlcModulesSubdir "modules\extensions"
 #>
 
 param(
@@ -62,6 +77,9 @@ param(
     [Parameter(Mandatory=$true)]
     [string]$VlcModulesSubdir,
     
+    [Parameter(Mandatory=$false)]
+    [string]$SourceRepo = "",
+    
     [switch]$Force
 )
 
@@ -69,7 +87,13 @@ $ErrorActionPreference = "Stop"
 
 # Get the script directory (where this script is located)
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
-$RepoDir = Split-Path -Parent (Split-Path -Parent $ScriptDir)
+
+# Set RepoDir: use -SourceRepo if provided, otherwise default to parent of parent of script dir
+if ($SourceRepo) {
+    $RepoDir = $SourceRepo
+} else {
+    $RepoDir = Split-Path -Parent (Split-Path -Parent $ScriptDir)
+}
 
 # VLC directories on Windows
 $VlcBaseDir = Join-Path $env:APPDATA "vlc\lua"
