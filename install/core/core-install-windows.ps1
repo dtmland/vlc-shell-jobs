@@ -69,7 +69,7 @@ $ErrorActionPreference = "Stop"
 
 # Get the script directory (where this script is located)
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
-$RepoDir = Split-Path -Parent $ScriptDir
+$RepoDir = Split-Path -Parent (Split-Path -Parent $ScriptDir)
 
 # VLC directories on Windows
 $VlcBaseDir = Join-Path $env:APPDATA "vlc\lua"
@@ -133,7 +133,7 @@ function Copy-FileWithPrompt {
     
     if ((Test-Path $Destination)) {
         if (Are-FilesIdentical -FileA $Source -FileB $Destination) {
-            Write-Host "  Skipping: $FileName (identical)" -ForegroundColor Yellow
+            Write-Host "  Up-to-date, skipping: $FileName" -ForegroundColor Green
             return $false
         }
         if (-not $Force) {
@@ -212,7 +212,7 @@ if (Test-Path $ExtensionFile) {
         }
 
         if ($ExtContentHash -ieq $DestHash) {
-            Write-Host "  Skipping: $ExtensionName (identical)" -ForegroundColor Yellow
+            Write-Host "  Up-to-date, skipping: $ExtensionName" -ForegroundColor Green
         } else {
             if (-not $Force) {
                 $response = Read-Host "File '$ExtensionName' already exists at destination. Overwrite? (y/N)"
