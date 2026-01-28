@@ -32,7 +32,7 @@ vlc-shell-jobs/
 │   └── win/                     # Windows batch file utilities
 │       ├── *.bat, *.ps1         # Utility scripts
 │       └── tests/               # Windows utility tests
-└── scripts/                     # Setup scripts
+└── install/                     # Installation scripts
 ```
 
 ### Core Lua Extension Files
@@ -89,21 +89,21 @@ See [utils/win/README.md](utils/win/README.md) for detailed documentation.
 
 ### Quick Install (Recommended)
 
-Use the setup scripts in the `scripts/` directory:
+Use the setup scripts in the `install/` directory:
 
 **Windows (PowerShell):**
 ```powershell
-.\scripts\setup-windows.ps1
+.\install\setup-windows.ps1
 ```
 
 **Linux (Bash):**
 ```bash
-./scripts/setup-linux.sh
+./install/setup-linux.sh
 ```
 
 **macOS (Bash):**
 ```bash
-./scripts/setup-macos.sh
+./install/setup-macos.sh
 ```
 
 ### Manual Installation

@@ -1,27 +1,67 @@
 <#
 .SYNOPSIS
-    Installs VLC Shell Jobs extension on Windows.
+    VLC Extension - Core Windows Installer
 
 .DESCRIPTION
-    Copies the VLC Shell Jobs extension files to the correct VLC directories.
-    Embeds the icon data into the installed shell_jobs.lua file.
+    A modular installer script that can be used for any VLC extension.
+    This script accepts extension-specific parameters and performs the installation.
     
     VLC uses the Roaming AppData directory (%APPDATA%) because user preferences
     and extensions should follow the user across different machines in a domain
     environment. This is standard Windows behavior for user-specific application
     data that isn't machine-dependent.
 
+.PARAMETER ExtensionName
+    Name of the main extension file (e.g., "shell_jobs.lua")
+
+.PARAMETER ExtensionDisplayName
+    Human-readable name (e.g., "VLC Shell Jobs")
+
+.PARAMETER ModuleFiles
+    Comma-separated list of module files to install
+
+.PARAMETER IconFile
+    Path to icon data file (relative to repo root, or empty for no icon)
+
+.PARAMETER VlcExtensionsSubdir
+    VLC extensions subdirectory (e.g., "extensions")
+
+.PARAMETER VlcModulesSubdir
+    VLC modules subdirectory (e.g., "modules\extensions")
+
 .PARAMETER Force
     Overwrite existing files without prompting.
 
 .EXAMPLE
-    .\setup-windows.ps1
-    
-.EXAMPLE
-    .\setup-windows.ps1 -Force
+    .\core-install-windows.ps1 `
+        -ExtensionName "shell_jobs.lua" `
+        -ExtensionDisplayName "VLC Shell Jobs" `
+        -ModuleFiles "dynamic_dialog.lua,os_detect.lua,shell_execute.lua,shell_job.lua,shell_job_defs.lua,shell_job_state.lua,shell_operator_fileio.lua" `
+        -IconFile "utils\icon\shell_jobs_32x32.lua" `
+        -VlcExtensionsSubdir "extensions" `
+        -VlcModulesSubdir "modules\extensions" `
+        -Force
 #>
 
 param(
+    [Parameter(Mandatory=$true)]
+    [string]$ExtensionName,
+    
+    [Parameter(Mandatory=$true)]
+    [string]$ExtensionDisplayName,
+    
+    [Parameter(Mandatory=$false)]
+    [string]$ModuleFiles = "",
+    
+    [Parameter(Mandatory=$false)]
+    [string]$IconFile = "",
+    
+    [Parameter(Mandatory=$true)]
+    [string]$VlcExtensionsSubdir,
+    
+    [Parameter(Mandatory=$true)]
+    [string]$VlcModulesSubdir,
+    
     [switch]$Force
 )
 
@@ -29,20 +69,26 @@ $ErrorActionPreference = "Stop"
 
 # Get the script directory (where this script is located)
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
-$RepoDir = Split-Path -Parent $ScriptDir
+$RepoDir = Split-Path -Parent (Split-Path -Parent $ScriptDir)
 
 # VLC directories on Windows
 $VlcBaseDir = Join-Path $env:APPDATA "vlc\lua"
-$ExtensionsDir = Join-Path $VlcBaseDir "extensions"
-$ModulesDir = Join-Path $VlcBaseDir "modules\extensions"
+$ExtensionsDir = Join-Path $VlcBaseDir $VlcExtensionsSubdir
+$ModulesDir = Join-Path $VlcBaseDir $VlcModulesSubdir
 
 # Source directories
 $SrcExtensionsDir = Join-Path $RepoDir "lua\extensions"
 $SrcModulesDir = Join-Path $RepoDir "lua\modules\extensions"
-$IconDataFile = Join-Path $RepoDir "utils\icon\shell_jobs_32x32.lua"
+
+# Icon file path (if provided)
+if ($IconFile) {
+    $IconDataFile = Join-Path $RepoDir $IconFile
+} else {
+    $IconDataFile = ""
+}
 
 Write-Host "============================================================================" -ForegroundColor Cyan
-Write-Host "VLC Shell Jobs - Windows Installer" -ForegroundColor Cyan
+Write-Host "$ExtensionDisplayName - Windows Installer" -ForegroundColor Cyan
 Write-Host "============================================================================" -ForegroundColor Cyan
 Write-Host ""
 Write-Host "Source repository: $RepoDir"
@@ -58,7 +104,7 @@ function Ensure-Directory {
     }
 }
 
-# New: compare files by checksum (SHA256)
+# Compare files by checksum (SHA256)
 function Are-FilesIdentical {
     param(
         [string]$FileA,
@@ -87,7 +133,7 @@ function Copy-FileWithPrompt {
     
     if ((Test-Path $Destination)) {
         if (Are-FilesIdentical -FileA $Source -FileB $Destination) {
-            Write-Host "  Skipping: $FileName (identical)" -ForegroundColor Yellow
+            Write-Host "  Up-to-date, skipping: $FileName" -ForegroundColor Green
             return $false
         }
         if (-not $Force) {
@@ -107,9 +153,11 @@ function Copy-FileWithPrompt {
 # Ensure target directories exist
 Write-Host "Creating VLC directories..." -ForegroundColor White
 Ensure-Directory $ExtensionsDir
-Ensure-Directory $ModulesDir
+if ($ModuleFiles) {
+    Ensure-Directory $ModulesDir
+}
 
-# New helper: compute SHA256 hash for a string (used to compare generated content)
+# Compute SHA256 hash for a string (used to compare generated content)
 function Get-StringHashSHA256 {
     param([string]$Text)
     $bytes = [System.Text.Encoding]::UTF8.GetBytes($Text)
@@ -127,7 +175,7 @@ function Get-ExtensionContentWithIcon {
     
     $ExtContent = Get-Content -Path $ExtensionFile -Raw
     
-    if (Test-Path $IconDataFile) {
+    if ($IconDataFile -and (Test-Path $IconDataFile)) {
         $IconContent = Get-Content -Path $IconDataFile -Raw
         
         # Add icon reference to descriptor and append icon data
@@ -136,7 +184,9 @@ function Get-ExtensionContentWithIcon {
         
         Write-Host "  Embedding icon data..." -ForegroundColor Green
     } else {
-        Write-Host "  WARNING: Icon data file not found, installing without icon" -ForegroundColor Yellow
+        if ($IconDataFile) {
+            Write-Host "  WARNING: Icon data file not found, installing without icon" -ForegroundColor Yellow
+        }
     }
     
     return $ExtContent
@@ -145,9 +195,9 @@ function Get-ExtensionContentWithIcon {
 # Copy and patch main extension file with icon data
 Write-Host ""
 Write-Host "Installing extension file..." -ForegroundColor White
-$ExtensionFile = Join-Path $SrcExtensionsDir "shell_jobs.lua"
+$ExtensionFile = Join-Path $SrcExtensionsDir $ExtensionName
 if (Test-Path $ExtensionFile) {
-    $DestFile = Join-Path $ExtensionsDir "shell_jobs.lua"
+    $DestFile = Join-Path $ExtensionsDir $ExtensionName
     
     # Generate the final content (with embedded icon) first
     $ExtContent = Get-ExtensionContentWithIcon -ExtensionFile $ExtensionFile -IconDataFile $IconDataFile
@@ -156,57 +206,52 @@ if (Test-Path $ExtensionFile) {
     if (Test-Path $DestFile) {
         # Compare generated content hash to destination file hash
         try {
-            $DestHash = (Get-FileHash -Path $DestFile -Algorithm SHA256 -ErrorAction Stop).Hash
+            $DestHash = (Get-FileHash -Path $DestFile -Algorithm SHA256 -ErrorAction Stop).Hash.ToLower()
         } catch {
             $DestHash = ""
         }
 
-        if ($ExtContentHash -eq $DestHash) {
-            Write-Host "  Skipping: shell_jobs.lua (identical)" -ForegroundColor Yellow
+        if ($ExtContentHash -ieq $DestHash) {
+            Write-Host "  Up-to-date, skipping: $ExtensionName" -ForegroundColor Green
         } else {
             if (-not $Force) {
-                $response = Read-Host "File 'shell_jobs.lua' already exists at destination. Overwrite? (y/N)"
+                $response = Read-Host "File '$ExtensionName' already exists at destination. Overwrite? (y/N)"
                 if ($response -ne 'y' -and $response -ne 'Y') {
-                    Write-Host "  Skipping: shell_jobs.lua" -ForegroundColor Yellow
+                    Write-Host "  Skipping: $ExtensionName" -ForegroundColor Yellow
                 } else {
                     Set-Content -Path $DestFile -Value $ExtContent -NoNewline
-                    Write-Host "  Installed: shell_jobs.lua" -ForegroundColor Green
+                    Write-Host "  Installed: $ExtensionName" -ForegroundColor Green
                 }
             } else {
                 Set-Content -Path $DestFile -Value $ExtContent -NoNewline
-                Write-Host "  Installed: shell_jobs.lua" -ForegroundColor Green
+                Write-Host "  Installed: $ExtensionName" -ForegroundColor Green
             }
         }
     } else {
         # Destination doesn't exist - write the generated content
         Set-Content -Path $DestFile -Value $ExtContent -NoNewline
-        Write-Host "  Installed: shell_jobs.lua" -ForegroundColor Green
+        Write-Host "  Installed: $ExtensionName" -ForegroundColor Green
     }
 } else {
     Write-Host "  ERROR: Extension file not found: $ExtensionFile" -ForegroundColor Red
     exit 1
 }
 
-# Copy module files (exclude tests directory)
-Write-Host ""
-Write-Host "Installing module files..." -ForegroundColor White
-$ModuleFiles = @(
-    "dynamic_dialog.lua",
-    "os_detect.lua",
-    "shell_execute.lua",
-    "shell_job.lua",
-    "shell_job_defs.lua",
-    "shell_job_state.lua",
-    "shell_operator_fileio.lua"
-)
-
-foreach ($file in $ModuleFiles) {
-    $SourceFile = Join-Path $SrcModulesDir $file
-    if (Test-Path $SourceFile) {
-        $DestFile = Join-Path $ModulesDir $file
-        Copy-FileWithPrompt -Source $SourceFile -Destination $DestFile -Force:$Force
-    } else {
-        Write-Host "  WARNING: Module file not found: $file" -ForegroundColor Yellow
+# Copy module files if provided
+if ($ModuleFiles) {
+    Write-Host ""
+    Write-Host "Installing module files..." -ForegroundColor White
+    
+    $ModuleFilesArray = $ModuleFiles -split ',' | ForEach-Object { $_.Trim() }
+    
+    foreach ($file in $ModuleFilesArray) {
+        $SourceFile = Join-Path $SrcModulesDir $file
+        if (Test-Path $SourceFile) {
+            $DestFile = Join-Path $ModulesDir $file
+            Copy-FileWithPrompt -Source $SourceFile -Destination $DestFile -Force:$Force
+        } else {
+            Write-Host "  WARNING: Module file not found: $file" -ForegroundColor Yellow
+        }
     }
 }
 
@@ -217,9 +262,11 @@ Write-Host "====================================================================
 Write-Host ""
 Write-Host "Files installed to:"
 Write-Host "  Extensions: $ExtensionsDir"
-Write-Host "  Modules:    $ModulesDir"
+if ($ModuleFiles) {
+    Write-Host "  Modules:    $ModulesDir"
+}
 Write-Host ""
 Write-Host "Next steps:"
 Write-Host "  1. Restart VLC"
-Write-Host "  2. Go to View menu -> Shell Jobs"
+Write-Host "  2. Go to View menu -> $ExtensionDisplayName"
 Write-Host ""
