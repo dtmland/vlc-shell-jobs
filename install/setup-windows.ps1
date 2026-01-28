@@ -40,7 +40,7 @@ $VlcExtensionsSubdir = "extensions"
 $VlcModulesSubdir = "modules\extensions"
 
 # Call the core installer with the extension-specific parameters
-& "$ScriptDir\core-install-windows.ps1" `
+& "$ScriptDir\core\core-install-windows.ps1" `
     -ExtensionName $ExtensionName `
     -ExtensionDisplayName $ExtensionDisplayName `
     -ModuleFiles $ModuleFiles `

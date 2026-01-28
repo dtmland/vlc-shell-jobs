@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/sh
 #
 # VLC Shell Jobs - Linux Setup
 #
@@ -13,8 +13,8 @@
 
 set -e
 
-# Get the script directory (where this script is located)
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Get the script directory (where this script is located) - POSIX compatible
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 # Extension-specific configuration
 EXTENSION_NAME="shell_jobs.lua"
@@ -25,7 +25,8 @@ VLC_EXTENSIONS_SUBDIR="extensions"
 VLC_MODULES_SUBDIR="modules/extensions"
 
 # Call the core installer with the extension-specific parameters
-"$SCRIPT_DIR/core-install-linux.sh" \
+"$SCRIPT_DIR/core/core-install-unix.sh" \
+    --platform "linux" \
     --extension-name "$EXTENSION_NAME" \
     --extension-display-name "$EXTENSION_DISPLAY_NAME" \
     --module-files "$MODULE_FILES" \
