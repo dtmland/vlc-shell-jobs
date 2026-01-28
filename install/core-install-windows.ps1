@@ -206,12 +206,12 @@ if (Test-Path $ExtensionFile) {
     if (Test-Path $DestFile) {
         # Compare generated content hash to destination file hash
         try {
-            $DestHash = (Get-FileHash -Path $DestFile -Algorithm SHA256 -ErrorAction Stop).Hash
+            $DestHash = (Get-FileHash -Path $DestFile -Algorithm SHA256 -ErrorAction Stop).Hash.ToLower()
         } catch {
             $DestHash = ""
         }
 
-        if ($ExtContentHash -eq $DestHash) {
+        if ($ExtContentHash -ieq $DestHash) {
             Write-Host "  Skipping: $ExtensionName (identical)" -ForegroundColor Yellow
         } else {
             if (-not $Force) {

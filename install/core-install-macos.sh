@@ -103,7 +103,6 @@ EXTENSIONS_DIR="$VLC_BASE_DIR/$VLC_EXTENSIONS_SUBDIR"
 MODULES_DIR="$VLC_BASE_DIR/$VLC_MODULES_SUBDIR"
 
 # Source directories
-EXTENSION_BASE_NAME="${EXTENSION_NAME%.lua}"
 SRC_EXTENSIONS_DIR="$REPO_DIR/lua/extensions"
 SRC_MODULES_DIR="$REPO_DIR/lua/modules/extensions"
 
@@ -170,7 +169,7 @@ copy_file_with_prompt() {
         src_hash=$(compute_hash_file "$source")
         dest_hash=$(compute_hash_file "$dest")
         if [ "$src_hash" = "$dest_hash" ]; then
-            echo -e "  ${YELLOW}Skipping identical file: $filename${NC}"
+            echo -e "  ${GREEN}Up-to-date, skipping: $filename${NC}"
             return 0
         fi
 
@@ -227,7 +226,7 @@ ${icon_content}"
         new_hash=$(compute_hash_content "$ext_content")
         dest_hash=$(compute_hash_file "$dest")
         if [ "$new_hash" = "$dest_hash" ]; then
-            echo -e "  ${YELLOW}Skipping identical extension (embedded) : $filename${NC}"
+            echo -e "  ${GREEN}Up-to-date, skipping: $filename${NC}"
             return 0
         fi
 
