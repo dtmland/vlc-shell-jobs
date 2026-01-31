@@ -13,7 +13,7 @@ local path_utils = require("extensions.path_utils")
 --   command: The command to execute
 -- Returns:
 --   true if command succeeded, false otherwise
-function executor.os_execute_wrapper(command)
+function executor.call(command)
     if not os_detect.is_macos() then
         -- On non-macOS platforms, trust os.execute return code directly
         local result = os.execute(command)
@@ -26,10 +26,13 @@ function executor.os_execute_wrapper(command)
     local unique_id = tostring(os.time()) .. "_" .. tostring(math.floor(os.clock() * 1000000)) .. "_" .. tostring(math.random(100000, 999999))
     local ipc_file = "/tmp/vlc_osexec_ipc_" .. unique_id
     
+    -- Get path prefix (extends PATH on macOS to include common binary locations)
+    local path_prefix = path_utils.get_path_prefix()
+    
     -- Wrap the command to write SUCCESS or FAILURE to the IPC file
     -- Note: The command parameter comes from the caller and is trusted input
     -- The wrapper simply adds IPC result tracking around it
-    local wrapped_command = "sh -c '( " .. command .. " ) && echo SUCCESS > \"" .. ipc_file .. "\" || echo FAILURE > \"" .. ipc_file .. "\"'"
+    local wrapped_command = "sh -c '" .. path_prefix .. "( " .. command .. " ) && echo SUCCESS > \"" .. ipc_file .. "\" || echo FAILURE > \"" .. ipc_file .. "\"'"
     
     -- Execute the wrapped command
     local os_result = os.execute(wrapped_command)
@@ -54,14 +57,14 @@ function executor.os_execute_wrapper(command)
     if ipc_success then
         -- File IPC says success - trust it even if os.execute returned failure
         if not os_success then
-            vlc.msg.dbg("os_execute_wrapper: os.execute returned failure but IPC indicates success - trusting IPC")
+            vlc.msg.dbg("executor.call: os.execute returned failure but IPC indicates success - trusting IPC")
         end
         return true
     else
         -- File IPC says failure or file not readable - only fail if both indicate failure
         if os_success then
             -- os.execute succeeded but IPC failed - this is unexpected, trust os.execute
-            vlc.msg.dbg("os_execute_wrapper: os.execute succeeded but IPC indicates failure - trusting os.execute")
+            vlc.msg.dbg("executor.call: os.execute succeeded but IPC indicates failure - trusting os.execute")
             return true
         end
         return false
