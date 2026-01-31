@@ -42,12 +42,23 @@ trap "rm -f \"$TEMP_PNG\"" EXIT
 if command -v convert &> /dev/null; then
     convert "$INPUT_FILE" -resize 32x32! "$TEMP_PNG"
 else
-    python3 -c "
+    if ! command -v python3 &> /dev/null; then
+        echo "Error: ImageMagick 'convert' not found and python3 is not installed."
+        exit 1
+    fi
+    if ! python3 -c "import PIL" &> /dev/null; then
+        echo "Error: Python Pillow (PIL) is not installed."
+        echo "Install with: pip3 install Pillow"
+        echo "Or install ImageMagick so 'convert' is available."
+        exit 1
+    fi
+
+    python3 - <<PY
 from PIL import Image
-img = Image.open('$INPUT_FILE')
+img = Image.open("$INPUT_FILE")
 img = img.resize((32, 32), Image.LANCZOS)
-img.save('$TEMP_PNG', 'PNG')
-"
+img.save("$TEMP_PNG", "PNG")
+PY
 fi
 
 # Generate Lua file
