@@ -112,8 +112,8 @@ function executor.job(command, command_directory)
             command_directory = os.getenv("HOME")
         end
 
-        -- Get macOS path prefix (empty string on other platforms)
-        local macos_path_prefix = path_utils.get_macos_path_prefix()
+        -- Get path prefix (empty string on platforms that don't need it)
+        local path_prefix = path_utils.get_path_prefix()
 
         -- Build a shell command that captures stdout and stderr separately
         -- Uses temporary files to capture stdout and stderr independently
@@ -122,7 +122,7 @@ function executor.job(command, command_directory)
         local tmp_stderr = "/tmp/vlc_shell_job_stderr_$$"
         one_liner = table.concat({
             "sh -c '",
-            macos_path_prefix,
+            path_prefix,
             "cd \"", command_directory, "\" && ",
             "( ", command, " > ", tmp_stdout, " 2> ", tmp_stderr, " && echo \"", success_designator, "\" >> ", tmp_stdout, " || echo \"", failure_designator, "\" >> ", tmp_stdout, " ); ",
             "cat ", tmp_stdout, " | while IFS= read -r line; do echo \"stdout: $line\"; done; ",
@@ -260,12 +260,12 @@ function executor.job_async_run(name, cmd_command, cmd_directory, pid_record, uu
         -- 5. Records the background process PID
         -- Run command directly - no eval wrapper needed since shell can handle it
         
-        -- Get macOS path prefix (empty string on other platforms)
-        local macos_path_prefix = path_utils.get_macos_path_prefix()
+        -- Get path prefix (empty string on platforms that don't need it)
+        local path_prefix = path_utils.get_path_prefix()
         
         one_liner = table.concat({
             "sh -c '",
-            macos_path_prefix,
+            path_prefix,
             status_running, " && ",
             "> \"", stdout_file, "\" && ",  -- Truncate stdout file immediately
             "> \"", stderr_file, "\" && ",  -- Truncate stderr file immediately
