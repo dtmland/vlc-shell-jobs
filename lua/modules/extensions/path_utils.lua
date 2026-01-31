@@ -86,7 +86,7 @@ function path_utils.get_path_prefix()
     if os_detect.is_macos() then
         return "export PATH=$PATH:/usr/local/bin:/opt/homebrew/bin; "
     end
-    -- Other platforms (Windows, Linux) don't need PATH adjustment
+    -- Add additional platform cases here as needed
     return ""
 end
 
