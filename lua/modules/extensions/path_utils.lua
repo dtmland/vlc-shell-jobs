@@ -58,6 +58,8 @@ function path_utils.fix_unix_path(path)
         "^lib64/",
         "^bin/",
         "^sbin/",
+        "^users/",
+        "^Users/",                
     }
     
     -- Check if path already starts with /
