@@ -22,10 +22,13 @@ function executor.os_execute_wrapper(command)
     
     -- macOS: Use file IPC to verify the result since os.execute is unreliable
     -- Generate a unique file path to avoid conflicts with concurrent invocations
-    local unique_id = tostring(os.time()) .. "_" .. tostring(math.random(100000, 999999))
+    -- Use os.time(), os.clock() and random number for better uniqueness
+    local unique_id = tostring(os.time()) .. "_" .. tostring(math.floor(os.clock() * 1000000)) .. "_" .. tostring(math.random(100000, 999999))
     local ipc_file = "/tmp/vlc_osexec_ipc_" .. unique_id
     
     -- Wrap the command to write SUCCESS or FAILURE to the IPC file
+    -- Note: The command parameter comes from the caller and is trusted input
+    -- The wrapper simply adds IPC result tracking around it
     local wrapped_command = "sh -c '( " .. command .. " ) && echo SUCCESS > \"" .. ipc_file .. "\" || echo FAILURE > \"" .. ipc_file .. "\"'"
     
     -- Execute the wrapped command
@@ -38,7 +41,8 @@ function executor.os_execute_wrapper(command)
     if file then
         local content = file:read("*all")
         file:close()
-        if content and content:match("SUCCESS") then
+        -- Use exact pattern matching to avoid false positives
+        if content and content:match("^SUCCESS") then
             ipc_success = true
         end
     end
