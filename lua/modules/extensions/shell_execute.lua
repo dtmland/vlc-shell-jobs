@@ -186,7 +186,7 @@ function executor.job_async_run(name, cmd_command, cmd_directory, pid_record, uu
         -- 3. Runs the command with stdout/stderr redirected
         -- 4. Sets status to SUCCESS or FAILURE based on exit code
         -- 5. Records the background process PID
-        -- Note: We use eval to properly handle semicolons and other shell metacharacters in cmd_command
+        -- Run command directly - no eval wrapper needed since shell can handle it
         one_liner = table.concat({
             "sh -c '",
             status_running, " && ",
@@ -194,7 +194,7 @@ function executor.job_async_run(name, cmd_command, cmd_directory, pid_record, uu
             "> \"", stderr_file, "\" && ",  -- Truncate stderr file immediately
             "( ",
             "cd \"", cmd_directory, "\" && ",
-            "eval \"", cmd_command:gsub('"', '\\"'), "\"",  -- Use eval to properly handle semicolons
+            cmd_command,  -- Run command directly without eval to avoid quote escaping issues
             " >> \"", stdout_file, "\" 2>> \"", stderr_file, "\" && ",
             status_success, " || ", status_failure,
             " ) &",
