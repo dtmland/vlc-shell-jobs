@@ -52,19 +52,19 @@ test_lib.assert_equals(nil, path_utils.fix_unix_path(nil), "fix_unix_path handle
 test_lib.assert_equals("", path_utils.fix_unix_path(""), "fix_unix_path handles empty string")
 
 -- ============================================================================
--- Test: get_macos_path_prefix function
+-- Test: get_path_prefix function
 -- ============================================================================
-test_lib.test_case("get_macos_path_prefix() returns correct value")
+test_lib.test_case("get_path_prefix() returns correct value")
 
-local prefix = path_utils.get_macos_path_prefix()
-test_lib.assert_type(prefix, "string", "get_macos_path_prefix() returns string")
+local prefix = path_utils.get_path_prefix()
+test_lib.assert_type(prefix, "string", "get_path_prefix() returns string")
 
 if os_detect.is_macos() then
     test_lib.assert_contains(prefix, "export PATH=", "macOS prefix contains export PATH")
     test_lib.assert_contains(prefix, "/usr/local/bin", "macOS prefix contains /usr/local/bin")
     test_lib.assert_contains(prefix, "/opt/homebrew/bin", "macOS prefix contains /opt/homebrew/bin")
 else
-    test_lib.assert_equals("", prefix, "get_macos_path_prefix() returns empty string on non-macOS")
+    test_lib.assert_equals("", prefix, "get_path_prefix() returns empty string on non-macOS")
 end
 
 -- ============================================================================
