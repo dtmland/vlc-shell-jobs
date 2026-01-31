@@ -1,5 +1,73 @@
 local executor = {}
 
+-- Import OS detection and path utilities modules
+local os_detect = require("extensions.os_detect")
+local path_utils = require("extensions.path_utils")
+
+
+-- Wrapper for os.execute that handles unreliable macOS return codes
+-- On macOS, os.execute can occasionally return -1 even when the command succeeded
+-- This wrapper uses file IPC to verify the actual result on macOS
+-- On other platforms, it simply returns the os.execute result
+-- Parameters:
+--   command: The command to execute
+-- Returns:
+--   true if command succeeded, false otherwise
+function executor.os_execute_wrapper(command)
+    if not os_detect.is_macos() then
+        -- On non-macOS platforms, trust os.execute return code directly
+        local result = os.execute(command)
+        return result == 0 or result == true
+    end
+    
+    -- macOS: Use file IPC to verify the result since os.execute is unreliable
+    -- Generate a unique file path to avoid conflicts with concurrent invocations
+    -- Use os.time(), os.clock() and random number for better uniqueness
+    local unique_id = tostring(os.time()) .. "_" .. tostring(math.floor(os.clock() * 1000000)) .. "_" .. tostring(math.random(100000, 999999))
+    local ipc_file = "/tmp/vlc_osexec_ipc_" .. unique_id
+    
+    -- Wrap the command to write SUCCESS or FAILURE to the IPC file
+    -- Note: The command parameter comes from the caller and is trusted input
+    -- The wrapper simply adds IPC result tracking around it
+    local wrapped_command = "sh -c '( " .. command .. " ) && echo SUCCESS > \"" .. ipc_file .. "\" || echo FAILURE > \"" .. ipc_file .. "\"'"
+    
+    -- Execute the wrapped command
+    local os_result = os.execute(wrapped_command)
+    local os_success = (os_result == 0 or os_result == true)
+    
+    -- Read the IPC file to get the actual result
+    local ipc_success = false
+    local file = io.open(ipc_file, "r")
+    if file then
+        local content = file:read("*all")
+        file:close()
+        -- Use exact pattern matching to avoid false positives
+        if content and content:match("^SUCCESS") then
+            ipc_success = true
+        end
+    end
+    
+    -- Clean up the IPC file
+    os.remove(ipc_file)
+    
+    -- Determine final result
+    if ipc_success then
+        -- File IPC says success - trust it even if os.execute returned failure
+        if not os_success then
+            vlc.msg.dbg("os_execute_wrapper: os.execute returned failure but IPC indicates success - trusting IPC")
+        end
+        return true
+    else
+        -- File IPC says failure or file not readable - only fail if both indicate failure
+        if os_success then
+            -- os.execute succeeded but IPC failed - this is unexpected, trust os.execute
+            vlc.msg.dbg("os_execute_wrapper: os.execute succeeded but IPC indicates failure - trusting os.execute")
+            return true
+        end
+        return false
+    end
+end
+
 
 function executor.job(command, command_directory)
     local result
@@ -11,7 +79,7 @@ function executor.job(command, command_directory)
     local success_designator = "EXITCODE:SUCCESS"
     local failure_designator = "EXITCODE:FAILURE"
 
-    if package.config:sub(1,1) == '\\' then
+    if os_detect.is_windows() then
         if not command_directory then
             command_directory = os.getenv("USERPROFILE")
         end
@@ -44,6 +112,9 @@ function executor.job(command, command_directory)
             command_directory = os.getenv("HOME")
         end
 
+        -- Get macOS path prefix (empty string on other platforms)
+        local macos_path_prefix = path_utils.get_macos_path_prefix()
+
         -- Build a shell command that captures stdout and stderr separately
         -- Uses temporary files to capture stdout and stderr independently
         -- Then prefixes each line with stdout: or stderr: for parsing
@@ -51,6 +122,7 @@ function executor.job(command, command_directory)
         local tmp_stderr = "/tmp/vlc_shell_job_stderr_$$"
         one_liner = table.concat({
             "sh -c '",
+            macos_path_prefix,
             "cd \"", command_directory, "\" && ",
             "( ", command, " > ", tmp_stdout, " 2> ", tmp_stderr, " && echo \"", success_designator, "\" >> ", tmp_stdout, " || echo \"", failure_designator, "\" >> ", tmp_stdout, " ); ",
             "cat ", tmp_stdout, " | while IFS= read -r line; do echo \"stdout: $line\"; done; ",
@@ -97,7 +169,7 @@ end
 function executor.job_async_stop(pid, uuid)
     local result = ""
 
-    if package.config:sub(1,1) == '\\' then
+    if os_detect.is_windows() then
         local one_liner = table.concat({
             "powershell -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -Command ",
             "\"",
@@ -160,7 +232,7 @@ function executor.job_async_run(name, cmd_command, cmd_directory, pid_record, uu
                                status_running, status_success, status_failure)
     local one_liner
     
-    if package.config:sub(1,1) == '\\' then
+    if os_detect.is_windows() then
         -- Windows
         one_liner = table.concat({
             "start ",
@@ -187,8 +259,13 @@ function executor.job_async_run(name, cmd_command, cmd_directory, pid_record, uu
         -- 4. Sets status to SUCCESS or FAILURE based on exit code
         -- 5. Records the background process PID
         -- Run command directly - no eval wrapper needed since shell can handle it
+        
+        -- Get macOS path prefix (empty string on other platforms)
+        local macos_path_prefix = path_utils.get_macos_path_prefix()
+        
         one_liner = table.concat({
             "sh -c '",
+            macos_path_prefix,
             status_running, " && ",
             "> \"", stdout_file, "\" && ",  -- Truncate stdout file immediately
             "> \"", stderr_file, "\" && ",  -- Truncate stderr file immediately
@@ -211,7 +288,7 @@ end
 
 -- Function to get the base jobrunner directory
 function executor.get_jobrunner_base_directory()
-    if package.config:sub(1,1) == '\\' then
+    if os_detect.is_windows() then
         -- Windows
         return os.getenv("APPDATA") .. "\\jobrunner"
     else
@@ -227,7 +304,7 @@ function executor.get_job_directories_with_ages()
     local base_dir = executor.get_jobrunner_base_directory()
     local result = {}
     
-    if package.config:sub(1,1) == '\\' then
+    if os_detect.is_windows() then
         -- Windows: Use PowerShell to get all directories with their LastWriteTime in one call
         local cmd = table.concat({
             'powershell -NoProfile -ExecutionPolicy Bypass -Command "',
@@ -303,10 +380,10 @@ end
 -- Returns true on success, false on failure
 function executor.remove_job_directory(dir_name)
     local base_dir = executor.get_jobrunner_base_directory()
-    local sep = package.config:sub(1,1) == '\\' and '\\' or '/'
+    local sep = os_detect.get_path_separator()
     local full_path = base_dir .. sep .. dir_name
     
-    if package.config:sub(1,1) == '\\' then
+    if os_detect.is_windows() then
         -- Windows: Use PowerShell to remove directory recursively
         local cmd = 'powershell -NoProfile -ExecutionPolicy Bypass -Command "Remove-Item -Path \'' .. full_path .. '\' -Recurse -Force -ErrorAction SilentlyContinue"'
         vlc.msg.dbg("Removing directory with command: " .. cmd)

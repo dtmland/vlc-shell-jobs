@@ -77,6 +77,18 @@ function path_utils.fix_unix_path(path)
     return path
 end
 
+-- Get the macOS PATH prefix export command
+-- On macOS, VLC runs with a minimal PATH, so we need to extend it
+-- to include common binary locations like /usr/local/bin and /opt/homebrew/bin
+-- Returns an export command that should be prepended to shell commands on macOS
+-- Returns empty string on other platforms
+function path_utils.get_macos_path_prefix()
+    if not os_detect.is_macos() then
+        return ""
+    end
+    return "export PATH=$PATH:/usr/local/bin:/opt/homebrew/bin; "
+end
+
 -- Extract directory, basename, and basename without extension from a path
 -- Cross-platform: handles both / and \ separators
 function path_utils.parse_path(path)

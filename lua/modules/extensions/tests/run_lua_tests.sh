@@ -38,6 +38,22 @@ else
     echo "[SUITE FAILED] test_os_detect.lua"
 fi
 
+# Run test_path_utils.lua
+echo ""
+echo "############################################################################"
+echo "RUNNING: test_path_utils.lua"
+echo "############################################################################"
+echo ""
+
+if lua test_path_utils.lua; then
+    PASSED_COUNT=$((PASSED_COUNT + 1))
+    echo "[SUITE PASSED] test_path_utils.lua"
+else
+    FAILED_COUNT=$((FAILED_COUNT + 1))
+    FAILED_TESTS="$FAILED_TESTS test_path_utils.lua"
+    echo "[SUITE FAILED] test_path_utils.lua"
+fi
+
 # Run test_shell_job_defs.lua
 echo ""
 echo "############################################################################"
