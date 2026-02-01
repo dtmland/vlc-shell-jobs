@@ -34,7 +34,7 @@ $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 # Extension-specific configuration
 $ExtensionName = "shell_jobs.lua"
 $ExtensionDisplayName = "VLC Shell Jobs"
-$ModuleFiles = "dynamic_dialog.lua,os_detect.lua,shell_execute.lua,shell_job.lua,shell_job_defs.lua,shell_job_state.lua,shell_operator_fileio.lua,xspf_writer.lua,path_utils.lua"
+$ModuleFiles = "dynamic_dialog.lua,os_detect.lua,shell_execute.lua,shell_job.lua,shell_job_defs.lua,shell_job_state.lua,shell_operator_fileio.lua,xspf_writer.lua,path_utils.lua, vlc_compat.lua"
 $IconFile = "utils\icon\shell_jobs_32x32.lua"
 $VlcExtensionsSubdir = "extensions"
 $VlcModulesSubdir = "modules\extensions"
