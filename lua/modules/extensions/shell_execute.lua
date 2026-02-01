@@ -3,6 +3,10 @@ local executor = {}
 -- Import OS detection and path utilities modules
 local os_detect = require("extensions.os_detect")
 local path_utils = require("extensions.path_utils")
+local vlc_compat = require("extensions.vlc_compat")
+
+-- Get VLC object (real or mock for testing)
+local vlc = vlc_compat.get_vlc()
 
 
 -- Wrapper for os.execute that handles unreliable macOS return codes
