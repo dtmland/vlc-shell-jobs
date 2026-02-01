@@ -2,8 +2,8 @@
 .gitignore text eol=lf
 .gitmodules text eol=lf
 
-# Ensure Unix line endings for shell scripts
-*.sh text eol=lf
+# Ensure Unix line endings and executable permissions for shell scripts
+*.sh text eol=lf diff=bash
 
 # Ensure Windows line endings for batch files
 *.bat text eol=crlf
