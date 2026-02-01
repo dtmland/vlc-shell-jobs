@@ -102,6 +102,38 @@ else
     echo "[SUITE FAILED] test_shell_job_state.lua"
 fi
 
+# Run test_vlc_compat.lua
+echo ""
+echo "############################################################################"
+echo "RUNNING: test_vlc_compat.lua"
+echo "############################################################################"
+echo ""
+
+if lua test_vlc_compat.lua; then
+    PASSED_COUNT=$((PASSED_COUNT + 1))
+    echo "[SUITE PASSED] test_vlc_compat.lua"
+else
+    FAILED_COUNT=$((FAILED_COUNT + 1))
+    FAILED_TESTS="$FAILED_TESTS test_vlc_compat.lua"
+    echo "[SUITE FAILED] test_vlc_compat.lua"
+fi
+
+# Run test_shell_execute.lua
+echo ""
+echo "############################################################################"
+echo "RUNNING: test_shell_execute.lua"
+echo "############################################################################"
+echo ""
+
+if lua test_shell_execute.lua; then
+    PASSED_COUNT=$((PASSED_COUNT + 1))
+    echo "[SUITE PASSED] test_shell_execute.lua"
+else
+    FAILED_COUNT=$((FAILED_COUNT + 1))
+    FAILED_TESTS="$FAILED_TESTS test_shell_execute.lua"
+    echo "[SUITE FAILED] test_shell_execute.lua"
+fi
+
 # Summary
 TOTAL_COUNT=$((PASSED_COUNT + FAILED_COUNT))
 
