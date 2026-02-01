@@ -59,7 +59,12 @@ function path_utils.fix_unix_path(path)
         "^bin/",
         "^sbin/",
         "^users/",
-        "^Users/",                
+        "^Applications/",
+        "^Library/",
+        "^System/",
+        "^Volumes/",
+        "^Network/",
+        "^Users/",
     }
     
     -- Check if path already starts with /
