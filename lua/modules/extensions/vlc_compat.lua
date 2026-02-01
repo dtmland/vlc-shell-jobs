@@ -103,6 +103,7 @@ function vlc_compat.enable_debug_logging()
 end
 
 function vlc_compat.disable_debug_logging()
+    -- Silence debug messages (intentional no-op for testing)
     mock_vlc.msg.dbg = function(message) end
 end
 

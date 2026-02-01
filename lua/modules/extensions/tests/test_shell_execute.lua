@@ -16,6 +16,16 @@ local executor = dofile("../shell_execute.lua")
 local os_detect = package.loaded["extensions.os_detect"]
 
 -- ============================================================================
+-- Test Configuration
+-- ============================================================================
+
+-- Wait durations for async operations (in seconds)
+-- These allow background processes time to complete
+local WAIT_SHORT = 0.5    -- Brief pause for fast operations
+local WAIT_MEDIUM = 1     -- Standard wait for typical async jobs
+local WAIT_LONG = 2       -- Extended wait for slower operations or system load
+
+-- ============================================================================
 -- Test Setup
 -- ============================================================================
 
@@ -117,7 +127,7 @@ executor.job_async_run(
 )
 
 -- Wait briefly for the async job to complete
-os.execute("sleep 0.5")
+os.execute("sleep " .. WAIT_SHORT)
 
 -- Check that files were created
 local status_content = test_lib.read_test_file(status_file)
@@ -127,7 +137,7 @@ local valid_status = status_content:match("RUNNING") or status_content:match("SU
 test_lib.assert_true(valid_status ~= nil, "Status file contains valid status")
 
 -- Wait a bit more and check for completion
-os.execute("sleep 0.5")
+os.execute("sleep " .. WAIT_SHORT)
 status_content = test_lib.read_test_file(status_file)
 test_lib.assert_contains(status_content, "SUCCESS", "Async job completed successfully")
 
@@ -169,7 +179,7 @@ executor.job_async_run(
 )
 
 -- Wait for the async job to complete (need more time for background process)
-os.execute("sleep 2")
+os.execute("sleep " .. WAIT_LONG)
 
 local fail_status_content = test_lib.read_test_file(fail_status_file)
 test_lib.assert_not_nil(fail_status_content, "Fail status file was created")
@@ -209,7 +219,7 @@ executor.job_async_run(
 )
 
 -- Wait for completion
-os.execute("sleep 1")
+os.execute("sleep " .. WAIT_MEDIUM)
 
 -- Verify IPC files
 local ipc_status = test_lib.read_test_file(ipc_status_file)
