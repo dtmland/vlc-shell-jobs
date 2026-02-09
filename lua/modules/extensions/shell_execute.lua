@@ -3,10 +3,7 @@ local executor = {}
 -- Import OS detection and path utilities modules
 local os_detect = require("extensions.os_detect")
 local path_utils = require("extensions.path_utils")
-local vlc_compat = require("extensions.vlc_compat")
-
--- Get VLC object (real or mock for testing)
-local vlc = vlc_compat.get_vlc()
+local vlc_interface = require("extensions.vlc_interface")
 
 
 -- Wrapper for os.execute that handles unreliable macOS return codes
@@ -61,14 +58,14 @@ function executor.call(command)
     if ipc_success then
         -- File IPC says success - trust it even if os.execute returned failure
         if not os_success then
-            vlc.msg.dbg("executor.call: os.execute returned failure but IPC indicates success - trusting IPC")
+            vlc_interface.msg_dbg("executor.call: os.execute returned failure but IPC indicates success - trusting IPC")
         end
         return true
     else
         -- File IPC says failure or file not readable - only fail if both indicate failure
         if os_success then
             -- os.execute succeeded but IPC failed - this is unexpected, trust os.execute
-            vlc.msg.dbg("executor.call: os.execute succeeded but IPC indicates failure - trusting os.execute")
+            vlc_interface.msg_dbg("executor.call: os.execute succeeded but IPC indicates failure - trusting os.execute")
             return true
         end
         return false
@@ -139,7 +136,7 @@ function executor.job(command, command_directory)
         })
     end
 
-    vlc.msg.info("Command: " .. one_liner)
+    vlc_interface.msg_info("Command: " .. one_liner)
     
     local handle = io.popen(one_liner, "r")
     if handle then
@@ -207,7 +204,7 @@ function executor.job_async_stop(pid, uuid)
             "\""
         })
 
-        vlc.msg.dbg("Stopping job with command: " .. one_liner)
+        vlc_interface.msg_dbg("Stopping job with command: " .. one_liner)
         result = os.execute(one_liner)
     else
         -- UNIX (Linux and macOS)
@@ -227,7 +224,7 @@ function executor.job_async_stop(pid, uuid)
             "'"
         })
 
-        vlc.msg.dbg("Stopping job with command: " .. one_liner)
+        vlc_interface.msg_dbg("Stopping job with command: " .. one_liner)
         result = os.execute(one_liner)
     end
 
@@ -287,9 +284,9 @@ function executor.job_async_run(name, cmd_command, cmd_directory, pid_record, uu
         })
     end
     
-    vlc.msg.info("Running command: " .. one_liner)
+    vlc_interface.msg_info("Running command: " .. one_liner)
     local result = os.execute(one_liner)
-    vlc.msg.dbg("Command executed with result: " .. tostring(result))
+    vlc_interface.msg_dbg("Command executed with result: " .. tostring(result))
 end
 
 
@@ -324,7 +321,7 @@ function executor.get_job_directories_with_ages()
             '}"'
         })
         
-        vlc.msg.dbg("Getting job directories with command: " .. cmd)
+        vlc_interface.msg_dbg("Getting job directories with command: " .. cmd)
         local handle = io.popen(cmd, "r")
         if handle then
             local output = handle:read("*all")
@@ -363,7 +360,7 @@ function executor.get_job_directories_with_ages()
             "'"
         })
         
-        vlc.msg.dbg("Getting job directories with command: " .. cmd)
+        vlc_interface.msg_dbg("Getting job directories with command: " .. cmd)
         local handle = io.popen(cmd, "r")
         if handle then
             local output = handle:read("*all")
@@ -393,13 +390,13 @@ function executor.remove_job_directory(dir_name)
     if os_detect.is_windows() then
         -- Windows: Use PowerShell to remove directory recursively
         local cmd = 'powershell -NoProfile -ExecutionPolicy Bypass -Command "Remove-Item -Path \'' .. full_path .. '\' -Recurse -Force -ErrorAction SilentlyContinue"'
-        vlc.msg.dbg("Removing directory with command: " .. cmd)
+        vlc_interface.msg_dbg("Removing directory with command: " .. cmd)
         local result = os.execute(cmd)
         return result == 0 or result == true
     else
         -- UNIX: Use rm -rf
         local cmd = 'rm -rf "' .. full_path .. '"'
-        vlc.msg.dbg("Removing directory with command: " .. cmd)
+        vlc_interface.msg_dbg("Removing directory with command: " .. cmd)
         local result = os.execute(cmd)
         return result == 0 or result == true
     end

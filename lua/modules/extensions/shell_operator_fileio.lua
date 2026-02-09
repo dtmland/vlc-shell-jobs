@@ -5,6 +5,7 @@
 -- reading and writing status, uuid, pid, stdout, and stderr files.
 
 local defs = require("extensions.shell_job_defs")
+local vlc_interface = require("extensions.vlc_interface")
 
 local fileio = {}
 
@@ -14,21 +15,15 @@ local fileio = {}
 
 function fileio.new(open_fn, msg_fn)
     local self = {}
-    
-    -- File operations wrapper (defaults to vlc.io.open if available)
+
+    -- File operations wrapper (defaults to vlc_interface.io_open)
     local open_wrapper = open_fn or function(path, mode)
-        if vlc and vlc.io then
-            return vlc.io.open(path, mode)
-        else
-            return io.open(path, mode)
-        end
+        return vlc_interface.io_open(path, mode)
     end
-    
-    -- Message logging wrapper (optional)
+
+    -- Message logging wrapper (defaults to vlc_interface.msg)
     local msg_wrapper = msg_fn or function(level, message)
-        if vlc and vlc.msg then
-            vlc.msg[level](message)
-        end
+        vlc_interface.msg(level, message)
     end
 
     -- ========================================================================

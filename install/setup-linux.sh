@@ -46,7 +46,7 @@ fi
 # Extension-specific configuration
 EXTENSION_NAME="shell_jobs.lua"
 EXTENSION_DISPLAY_NAME="VLC Shell Jobs"
-MODULE_FILES="dynamic_dialog.lua,os_detect.lua,shell_execute.lua,shell_job.lua,shell_job_defs.lua,shell_job_state.lua,shell_operator_fileio.lua,xspf_writer.lua,path_utils.lua,vlc_compat.lua"
+MODULE_FILES="dynamic_dialog.lua,os_detect.lua,shell_execute.lua,shell_job.lua,shell_job_defs.lua,shell_job_state.lua,shell_operator_fileio.lua,xspf_writer.lua,path_utils.lua,vlc_compat.lua,vlc_interface.lua"
 ICON_FILE="utils/icon/shell_jobs_32x32.lua"
 VLC_EXTENSIONS_SUBDIR="extensions"
 VLC_MODULES_SUBDIR="modules/extensions"

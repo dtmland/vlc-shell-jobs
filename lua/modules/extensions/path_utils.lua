@@ -1,6 +1,7 @@
 -- path_utils.lua
 -- Path utilities for cross-platform path handling
 -- Includes fix for Linux paths missing leading slash
+-- Includes fix for Windows paths with forward slashes
 
 local path_utils = {}
 
@@ -82,6 +83,25 @@ function path_utils.fix_unix_path(path)
     
     -- Path doesn't match known patterns, return as-is
     return path
+end
+
+-- Fix paths that have forward slashes on Windows
+-- VLC/Lua may provide URI-decoded paths with forward slashes,
+-- which need to be converted to backslashes for Windows filesystem operations
+function path_utils.fix_windows_path(path)
+    if not path or path == "" then
+        return path
+    end
+
+    -- Only apply fix on Windows systems
+    if not os_detect.is_windows() then
+        return path
+    end
+
+    -- Replace all forward slashes with backslashes
+    local fixed_path = path:gsub("/", "\\")
+
+    return fixed_path
 end
 
 -- Get the platform-specific PATH prefix export command
