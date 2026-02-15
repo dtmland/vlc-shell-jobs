@@ -50,15 +50,23 @@ local function detect_vlc_version()
         if os_detect.is_windows() then
             -- Try standard VLC install path
             local paths = {
-                '"C:\\Program Files\\VideoLAN\\VLC\\vlc.exe"',
-                '"C:\\Program Files (x86)\\VideoLAN\\VLC\\vlc.exe"',
+                "C:\\Program Files\\VideoLAN\\VLC\\vlc.exe",
+                "C:\\Program Files (x86)\\VideoLAN\\VLC\\vlc.exe",
             }
             for _, vlc_path in ipairs(paths) do
-                local cmd = 'powershell -NoProfile -Command "(Get-Item ' .. vlc_path .. ').VersionInfo.FileVersion" 2>NUL'
+                -- Use single quotes around the path inside PowerShell to avoid
+                -- nested double-quote conflicts with cmd.exe /c
+                local cmd = "powershell -NoProfile -Command \"(Get-Item '" .. vlc_path .. "').VersionInfo.FileVersion\" 2>NUL"
+		vlc_interface.msg_dbg("Check vlc version: " .. cmd)
                 local pipe = io.popen(cmd)
                 if pipe then
                     local output = pipe:read("*l")
                     pipe:close()
+                    if output then
+		        vlc_interface.msg_dbg("Version check output: " .. output)
+                    else
+		        vlc_interface.msg_dbg("Version check output nil?")
+                    end
                     if output and output:match("^%d+%.%d+") then
                         return output
                     end
@@ -112,25 +120,26 @@ local function detect_vlc_version()
     return nil
 end
 
--- Ensure version is detected (lazy, runs once)
-local function ensure_version_detected()
-    if not version_detected then
-        version_detected = true
-        detected_version = detect_vlc_version()
-    end
+-- Explicitly run version detection (call this on demand, not at load time,
+-- because the PowerShell call on Windows introduces a noticeable delay)
+function vlc_interface.detect_version()
+    version_detected = true
+    detected_version = detect_vlc_version()
+    return detected_version
 end
 
 -- Get the detected VLC version
--- Returns {major, minor, patch} or nil if detection failed
+-- Returns {major, minor, patch} or nil if detection hasn't run or failed
 function vlc_interface.get_version()
-    ensure_version_detected()
     return detected_version
 end
 
 -- Get version as a display string
--- Returns "3.0.20" or "unknown"
+-- Returns "3.0.20" or "not checked" / "unknown"
 function vlc_interface.get_version_string()
-    ensure_version_detected()
+    if not version_detected then
+        return "not checked"
+    end
     if detected_version then
         return detected_version.major .. "." .. detected_version.minor .. "." .. detected_version.patch
     end
@@ -139,11 +148,10 @@ end
 
 -- Check if the detected version is compatible with this codebase
 -- Returns: compatible (boolean), message (string or nil)
--- compatible is true if major version matches or if detection failed (benefit of the doubt)
+-- compatible is true if major version matches or if detection failed/not run (benefit of the doubt)
 function vlc_interface.check_version_compatibility()
-    ensure_version_detected()
     if not detected_version then
-        return true, nil  -- Can't detect, don't warn
+        return true, nil  -- Can't detect or not run yet, don't warn
     end
     if detected_version.major ~= vlc_interface.SUPPORTED_MAJOR_VERSION then
         return false,

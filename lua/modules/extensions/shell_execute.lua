@@ -16,7 +16,7 @@ local vlc_interface = require("extensions.vlc_interface")
 --   true if command succeeded, false otherwise
 function executor.call(command)
     if not os_detect.is_macos() then
-        -- On non-macOS platforms, trust os.execute return code directly
+        -- On Windows and Linux, trust os.execute return code directly
         local result = os.execute(command)
         return result == 0 or result == true
     end
